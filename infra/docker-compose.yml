@@ -1,0 +1,192 @@
+version: '3.9'
+
+# ============================================================
+# Mo-Ride Docker Compose — single command local dev
+# Run: docker compose -f infra/docker-compose.yml up --build
+# Or:  make dev  (copies .env automatically)
+# ============================================================
+
+x-flask-common: &flask-common
+  restart: unless-stopped
+  networks:
+    - moride-net
+
+services:
+
+  # ─── Infrastructure ──────────────────────────────────────
+
+  postgres:
+    image: postgres:15-alpine
+    <<: *flask-common
+    environment:
+      POSTGRES_DB: moride
+      POSTGRES_USER: moride
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moride_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../infra/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moride -d moride"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    <<: *flask-common
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    <<: *flask-common
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minio_access_key}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minio_secret_key}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    <<: *flask-common
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — visit http://localhost:8025
+
+  # ─── Backend Services ─────────────────────────────────────
+
+  auth-service:
+    build:
+      context: ../services/auth
+      dockerfile: Dockerfile
+    <<: *flask-common
+    environment:
+      DATABASE_URL: postgresql://moride:${POSTGRES_PASSWORD:-moride_secret}@postgres:5432/moride
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_prod}
+      JWT_ACCESS_EXPIRES_MINUTES: ${JWT_ACCESS_EXPIRES_MINUTES:-60}
+      JWT_REFRESH_EXPIRES_DAYS: ${JWT_REFRESH_EXPIRES_DAYS:-30}
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-noreply@moride.monash.edu}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minio_access_key}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minio_secret_key}
+      MINIO_BUCKET_PROFILES: ${MINIO_BUCKET_PROFILES:-moride-profiles}
+      FLASK_ENV: development
+    ports:
+      - "5001:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ride-matching-service:
+    build:
+      context: ../services/ride-matching
+      dockerfile: Dockerfile
+    <<: *flask-common
+    environment:
+      DATABASE_URL: postgresql://moride:${POSTGRES_PASSWORD:-moride_secret}@postgres:5432/moride
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_prod}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      BASE_RATE: ${BASE_RATE:-2.00}
+      RATE_PER_KM: ${RATE_PER_KM:-1.50}
+      PEAK_HOURS_MORNING_START: ${PEAK_HOURS_MORNING_START:-07:00}
+      PEAK_HOURS_MORNING_END: ${PEAK_HOURS_MORNING_END:-09:00}
+      PEAK_HOURS_EVENING_START: ${PEAK_HOURS_EVENING_START:-16:00}
+      PEAK_HOURS_EVENING_END: ${PEAK_HOURS_EVENING_END:-19:00}
+      PEAK_MULTIPLIER: ${PEAK_MULTIPLIER:-1.2}
+      CO2_PER_KM_PETROL: ${CO2_PER_KM_PETROL:-0.21}
+      CO2_PER_KM_SHARED: ${CO2_PER_KM_SHARED:-0.09}
+      DRIVER_SEARCH_RADIUS_KM: ${DRIVER_SEARCH_RADIUS_KM:-5}
+      DRIVER_ACCEPT_TIMEOUT_SECONDS: ${DRIVER_ACCEPT_TIMEOUT_SECONDS:-30}
+      FLASK_ENV: development
+    ports:
+      - "5002:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  location-tracking-service:
+    build:
+      context: ../services/location-tracking
+      dockerfile: Dockerfile
+    <<: *flask-common
+    environment:
+      DATABASE_URL: postgresql://moride:${POSTGRES_PASSWORD:-moride_secret}@postgres:5432/moride
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_prod}
+      FLASK_ENV: development
+    ports:
+      - "5003:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  payments-service:
+    build:
+      context: ../services/payments
+      dockerfile: Dockerfile
+    <<: *flask-common
+    environment:
+      DATABASE_URL: postgresql://moride:${POSTGRES_PASSWORD:-moride_secret}@postgres:5432/moride
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_prod}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      FLASK_ENV: development
+    ports:
+      - "5004:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── API Gateway (nginx reverse proxy) ───────────────────
+
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: Dockerfile
+    <<: *flask-common
+    ports:
+      - "8000:80"
+    depends_on:
+      - auth-service
+      - ride-matching-service
+      - location-tracking-service
+      - payments-service
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  moride-net:
+    driver: bridge

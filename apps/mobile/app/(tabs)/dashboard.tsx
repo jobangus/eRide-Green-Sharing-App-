@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/store/auth';
 import { THEME_COLORS } from '../../src/constants/config';
-import type { SustainabilitySummary, SustainabilityRideItem } from '../../../packages/shared/src';
+import type { SustainabilitySummary, SustainabilityRideItem } from '@moride/shared';
 
 export default function DashboardScreen() {
   const { api } = useAuth();

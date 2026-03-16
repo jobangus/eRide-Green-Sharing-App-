@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, API_BASE_URL } from '../../src/constants/config';
-import { MoRideApiClient } from '../../../packages/shared/src';
+import { MoRideApiClient } from '@moride/shared';
 
 const api = new MoRideApiClient(API_BASE_URL);
 

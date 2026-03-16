@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, SafeAreaView, Alert, TouchableOpacit
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, API_BASE_URL } from '../../src/constants/config';
-import { MoRideApiClient } from '../../../packages/shared/src';
+import { MoRideApiClient } from '@moride/shared';
 
 const api = new MoRideApiClient(API_BASE_URL);
 

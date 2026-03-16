@@ -10,7 +10,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
 import { useSocketIO } from '../../src/hooks/useSocketIO';
-import type { RideStatus, WsRideStatusUpdate, WsLocationUpdate } from '../../../packages/shared/src';
+import type { RideStatus, WsRideStatusUpdate, WsLocationUpdate } from '@moride/shared';
 
 type AppState = 'idle' | 'selecting' | 'estimate' | 'matching' | 'active' | 'completed';
 

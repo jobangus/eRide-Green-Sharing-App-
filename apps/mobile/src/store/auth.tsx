@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { MoRideApiClient, initApiClient, UserProfile } from '../../../packages/shared/src';
+import { MoRideApiClient, initApiClient, UserProfile } from '@moride/shared';
 import { API_BASE_URL } from '../constants/config';
 
 const ACCESS_TOKEN_KEY = 'moride_access_token';

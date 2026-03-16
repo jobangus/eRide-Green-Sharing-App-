@@ -6,7 +6,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '../constants/config';
-import type { WsRideStatusUpdate, WsLocationUpdate, WsRideCancel, WsRideRequest } from '../../../packages/shared/src';
+import type { WsRideStatusUpdate, WsLocationUpdate, WsRideCancel, WsRideRequest } from '@moride/shared';
 
 const SOCKET_URL = API_BASE_URL;
 

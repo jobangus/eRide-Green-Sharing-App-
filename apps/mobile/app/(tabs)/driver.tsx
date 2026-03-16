@@ -9,7 +9,7 @@ import { useAuth } from '../../src/store/auth';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
 import { useSocketIO } from '../../src/hooks/useSocketIO';
-import type { WsRideRequest, WsRideStatusUpdate, RideStatus } from '../../../packages/shared/src';
+import type { WsRideRequest, WsRideStatusUpdate, RideStatus } from '@moride/shared';
 
 type DriverAppState = 'offline' | 'online' | 'request_incoming' | 'active_ride' | 'completed';
 

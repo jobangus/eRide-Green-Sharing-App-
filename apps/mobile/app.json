@@ -48,8 +48,8 @@
     ],
     "scheme": "moride",
     "extra": {
-      "API_BASE_URL": "http://localhost:8000",
-      "eas": {
+      "API_BASE_URL": "http://172.20.10.8:8000",
+      "eas": {        
         "projectId": "moride-local-dev"
       }
     }

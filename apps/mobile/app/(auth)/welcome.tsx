@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Pressable, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  Pressable,
+  Image,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
-import { THEME_COLORS } from '../../src/constants/config';
 
 export default function WelcomeScreen() {
   return (
@@ -17,30 +23,18 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        <Text style={styles.title}>Mo-Ride</Text>
+        <Text style={styles.title}>Welcome to Mo-Ride</Text>
 
         <Text style={styles.subtitle}>
-          Smart, sustainable ride-sharing for the Monash community.
+          Continue with your Monash account to start riding or driving.
         </Text>
-
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Monash Students & Staffs</Text>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Eco-friendly</Text>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Affordable</Text>
-          </View>
-        </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Get started</Text>
+        <Text style={styles.cardTitle}>Choose how you want to continue</Text>
 
         <Text style={styles.cardDescription}>
-          Join a safer, greener, and more convenient way to travel around Monash.
+          Create a new account if you are new here, or sign in to continue with your existing one.
         </Text>
 
         <View style={styles.actions}>
@@ -76,87 +70,65 @@ const styles = StyleSheet.create({
   },
 
   topSection: {
-    backgroundColor: THEME_COLORS.primary,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    backgroundColor: '#43A047',
+    borderBottomLeftRadius: 34,
+    borderBottomRightRadius: 34,
     paddingHorizontal: 24,
-    paddingTop: 34,
-    paddingBottom: 28,
+    paddingTop: 42,
+    paddingBottom: 48,
     alignItems: 'center',
     overflow: 'hidden',
   },
 
   glowCircle: {
     position: 'absolute',
-    top: -50,
-    right: -30,
-    width: 190,
-    height: 190,
+    top: -40,
+    right: -10,
+    width: 200,
+    height: 200,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
 
   logoWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 78,
+    height: 78,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
 
   logo: {
-    width: 50,
-    height: 50,
+    width: 84,
+    height: 84,
     resizeMode: 'contain',
+    marginTop: 10,
   },
 
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: 0.2,
+    textAlign: 'center',
   },
 
   subtitle: {
     fontSize: 16,
-    color: '#E8F5E9',
+    color: 'rgba(255,255,255,0.90)',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 10,
     paddingHorizontal: 12,
-  },
-
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-
-  badge: {
-    margin: 5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-
-  badgeText: {
-    color: '#F1F8E9',
-    fontSize: 11,
-    fontWeight: '600',
   },
 
   card: {
     marginHorizontal: 20,
-    marginTop: -18,
+    marginTop: -24,
     marginBottom: 18,
     backgroundColor: '#FFFFFF',
     borderRadius: 26,
@@ -169,7 +141,7 @@ const styles = StyleSheet.create({
   },
 
   cardTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: '#17321F',
     marginBottom: 8,
@@ -187,11 +159,13 @@ const styles = StyleSheet.create({
   },
 
   primaryBtn: {
-    backgroundColor: THEME_COLORS.primary,
+    backgroundColor: '#34A853',
+    borderRadius: 16,
   },
 
   secondaryBtn: {
-    borderColor: THEME_COLORS.primary,
+    borderColor: '#34A853',
+    borderRadius: 16,
   },
 
   helperText: {

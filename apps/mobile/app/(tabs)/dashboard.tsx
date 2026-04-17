@@ -1,11 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, ScrollView,
-  ActivityIndicator, RefreshControl,
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useAuth } from '../../src/store/auth';
-import { THEME_COLORS } from '../../src/constants/config';
 import type { SustainabilitySummary, SustainabilityRideItem } from '@moride/shared';
+import {
+  Leaf,
+  Car,
+  MapPin,
+  Route,
+  Trees,
+  TrendingUp,
+  CalendarDays,
+} from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const { api } = useAuth();
@@ -40,12 +53,19 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.center}><ActivityIndicator size="large" color={THEME_COLORS.primary} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#34A853" />
+        </View>
       </SafeAreaView>
     );
   }
 
   const co2 = summary?.total_co2_saved_kg ?? 0;
+  const totalRides = summary?.total_rides ?? 0;
+  const totalKm = summary?.total_km ?? 0;
+  const notDrivenKm = summary?.equivalent_km_not_driven ?? 0;
+  const co2PerRide = ((summary?.total_co2_saved_kg ?? 0) / Math.max(totalRides, 1)).toFixed(2);
+  const treeHours = summary?.equivalent_trees_hours ?? 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -53,67 +73,112 @@ export default function DashboardScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>🌿 Eco Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Your environmental impact from Mo-Ride</Text>
-        </View>
-
-        {/* Big CO2 Stat */}
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEmoji}>🌍</Text>
-          <Text style={styles.heroValue}>{co2.toFixed(2)} kg</Text>
-          <Text style={styles.heroLabel}>CO₂ Saved</Text>
-          <Text style={styles.heroEquiv}>
-            ≈ {summary?.equivalent_trees_hours ?? 0} tree-hours of absorption
+        <View style={styles.headerCard}>
+          <View style={styles.headerIconWrap}>
+            <Leaf size={22} color="#2E7D32" />
+          </View>
+          <Text style={styles.headerTitle}>Eco Dashboard</Text>
+          <Text style={styles.headerSubtitle}>
+            Track your environmental impact through shared rides.
           </Text>
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <StatCard emoji="🚗" value={summary?.total_rides ?? 0} label="Shared Rides" />
-          <StatCard emoji="📍" value={`${(summary?.total_km ?? 0).toFixed(1)} km`} label="Total km Shared" />
-          <StatCard emoji="⛽" value={`${(summary?.equivalent_km_not_driven ?? 0).toFixed(0)} km`} label="Km Not Driven Alone" />
-          <StatCard emoji="🌱" value={`${((summary?.total_co2_saved_kg ?? 0) / Math.max(summary?.total_rides ?? 1, 1)).toFixed(2)} kg`} label="CO₂ per Ride" />
+        <View style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroLeafWrap}>
+              <Leaf size={26} color="#FFFFFF" />
+            </View>
+            <View style={styles.heroChip}>
+              <Trees size={14} color="#E8F5E9" />
+              <Text style={styles.heroChipText}>{treeHours} tree-hours</Text>
+            </View>
+          </View>
+
+          <Text style={styles.heroValue}>{co2.toFixed(2)} kg</Text>
+          <Text style={styles.heroLabel}>CO₂ Saved</Text>
+          <Text style={styles.heroEquiv}>
+            Equivalent to avoiding unnecessary solo travel and reducing shared transport emissions.
+          </Text>
         </View>
 
-        {/* Weekly Bar Chart (simple text-based) */}
+        <View style={styles.statsRow}>
+          <StatCard icon={<Car size={18} color="#34A853" />} value={totalRides} label="Shared Rides" />
+          <StatCard icon={<MapPin size={18} color="#34A853" />} value={`${totalKm.toFixed(1)} km`} label="Total km" />
+        </View>
+
+        <View style={styles.statsRow}>
+          <StatCard icon={<Route size={18} color="#34A853" />} value={`${notDrivenKm.toFixed(0)} km`} label="Km Not Driven Alone" />
+          <StatCard icon={<Leaf size={18} color="#34A853" />} value={`${co2PerRide} kg`} label="CO₂ per Ride" />
+        </View>
+
         {summary && summary.weekly_trend.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Weekly CO₂ Savings</Text>
-            {summary.weekly_trend.slice(-6).map((week, i) => {
-              const maxSaving = Math.max(...summary.weekly_trend.map(w => w.co2_saved_kg), 0.01);
-              const barWidth = (week.co2_saved_kg / maxSaving) * 100;
-              return (
-                <View key={i} style={styles.barRow}>
-                  <Text style={styles.barLabel}>{new Date(week.week).toLocaleDateString('en-AU', { month: 'short', day: 'numeric' })}</Text>
-                  <View style={styles.barBg}>
-                    <View style={[styles.barFill, { width: `${barWidth}%` as any }]} />
+            <View style={styles.sectionCard}>
+              {summary.weekly_trend.slice(-6).map((week, i) => {
+                const maxSaving = Math.max(
+                  ...summary.weekly_trend.map((w) => w.co2_saved_kg),
+                  0.01
+                );
+                const barWidth = (week.co2_saved_kg / maxSaving) * 100;
+
+                return (
+                  <View key={i} style={styles.barRow}>
+                    <View style={styles.barDateWrap}>
+                      <CalendarDays size={13} color="#6B7280" />
+                      <Text style={styles.barLabel}>
+                        {new Date(week.week).toLocaleDateString('en-AU', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+
+                    <View style={styles.barBg}>
+                      <View style={[styles.barFill, { width: `${barWidth}%` as any }]} />
+                    </View>
+
+                    <Text style={styles.barValue}>{week.co2_saved_kg.toFixed(2)}</Text>
                   </View>
-                  <Text style={styles.barValue}>{week.co2_saved_kg.toFixed(2)}</Text>
-                </View>
-              );
-            })}
+                );
+              })}
+            </View>
           </View>
         )}
 
-        {/* Recent Rides */}
         {rides.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Rides</Text>
-            {rides.slice(0, 10).map(ride => (
+
+            {rides.slice(0, 10).map((ride) => (
               <View key={ride.ride_id} style={styles.rideCard}>
                 <View style={styles.rideHeader}>
-                  <Text style={styles.rideDate}>{new Date(ride.created_at).toLocaleDateString('en-AU')}</Text>
+                  <View style={styles.rideDateWrap}>
+                    <CalendarDays size={13} color="#6B7280" />
+                    <Text style={styles.rideDate}>
+                      {new Date(ride.created_at).toLocaleDateString('en-AU')}
+                    </Text>
+                  </View>
+
                   <View style={styles.co2Badge}>
-                    <Text style={styles.co2BadgeText}>-{ride.co2_saved_kg.toFixed(3)} kg CO₂</Text>
+                    <Leaf size={12} color="#2E7D32" />
+                    <Text style={styles.co2BadgeText}>
+                      -{ride.co2_saved_kg.toFixed(3)} kg
+                    </Text>
                   </View>
                 </View>
+
                 <Text style={styles.rideRoute}>
                   {ride.pickup_address || 'Unknown'} → {ride.dropoff_address || 'Unknown'}
                 </Text>
-                <Text style={styles.rideDistance}>{ride.distance_km.toFixed(1)} km · {ride.passengers} passenger(s)</Text>
+
+                <View style={styles.rideMetaRow}>
+                  <Text style={styles.rideDistance}>{ride.distance_km.toFixed(1)} km</Text>
+                  <Text style={styles.rideMetaDot}>•</Text>
+                  <Text style={styles.rideDistance}>{ride.passengers} passenger(s)</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -121,9 +186,13 @@ export default function DashboardScreen() {
 
         {rides.length === 0 && !loading && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🌱</Text>
-            <Text style={styles.emptyTitle}>No rides yet</Text>
-            <Text style={styles.emptySubtitle}>Complete your first shared ride to start tracking your CO₂ savings!</Text>
+            <View style={styles.emptyIconWrap}>
+              <TrendingUp size={34} color="#34A853" />
+            </View>
+            <Text style={styles.emptyTitle}>No eco data yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Complete your first shared ride to start tracking your CO₂ savings and environmental impact.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -131,65 +200,351 @@ export default function DashboardScreen() {
   );
 }
 
-function StatCard({ emoji, value, label }: { emoji: string; value: string | number; label: string }) {
+function StatCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  value: string | number;
+  label: string;
+}) {
   return (
-    <View style={statStyles.card}>
-      <Text style={statStyles.emoji}>{emoji}</Text>
-      <Text style={statStyles.value}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
+    <View style={styles.statCard}>
+      {icon}
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-const statStyles = StyleSheet.create({
-  card: {
-    flex: 1, minWidth: '45%', backgroundColor: '#fff', borderRadius: 14,
-    padding: 14, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
-  },
-  emoji: { fontSize: 24, marginBottom: 4 },
-  value: { fontSize: 20, fontWeight: 'bold', color: THEME_COLORS.primary },
-  label: { fontSize: 11, color: THEME_COLORS.subtext, textAlign: 'center', marginTop: 2 },
-});
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: THEME_COLORS.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { flex: 1 },
-  container: { padding: 16, paddingBottom: 32 },
-  header: { marginBottom: 16 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: THEME_COLORS.text },
-  headerSubtitle: { color: THEME_COLORS.subtext, marginTop: 2 },
+  safe: {
+    flex: 1,
+    backgroundColor: '#F7FAF8',
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  container: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+
+  headerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+
+  headerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#17321F',
+    marginBottom: 4,
+  },
+
+  headerSubtitle: {
+    color: '#6B7280',
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
   heroCard: {
-    backgroundColor: THEME_COLORS.primary, borderRadius: 18, padding: 24,
-    alignItems: 'center', marginBottom: 16,
+    backgroundColor: '#34A853',
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 16,
+    shadowColor: '#34A853',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  heroEmoji: { fontSize: 48, marginBottom: 8 },
-  heroValue: { fontSize: 42, fontWeight: 'bold', color: '#fff' },
-  heroLabel: { fontSize: 16, color: '#A5D6A7', fontWeight: '600' },
-  heroEquiv: { fontSize: 12, color: '#81C784', marginTop: 4, textAlign: 'center' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: THEME_COLORS.text, marginBottom: 12 },
-  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  barLabel: { width: 54, fontSize: 11, color: THEME_COLORS.subtext },
-  barBg: { flex: 1, height: 14, backgroundColor: '#E8F5E9', borderRadius: 7, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: THEME_COLORS.primary, borderRadius: 7 },
-  barValue: { width: 36, fontSize: 11, color: THEME_COLORS.primary, fontWeight: '600', textAlign: 'right' },
+
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  heroLeafWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  heroChipText: {
+    color: '#E8F5E9',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  heroValue: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 18,
+  },
+
+  heroLabel: {
+    fontSize: 16,
+    color: '#E8F5E9',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+
+  heroEquiv: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.86)',
+    marginTop: 10,
+    lineHeight: 19,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#17321F',
+    marginTop: 8,
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 16,
+  },
+
+  section: {
+    marginTop: 14,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#17321F',
+    marginBottom: 10,
+  },
+
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+
+  barDateWrap: {
+    width: 74,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  barLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+
+  barBg: {
+    flex: 1,
+    height: 14,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 7,
+    overflow: 'hidden',
+  },
+
+  barFill: {
+    height: '100%',
+    backgroundColor: '#34A853',
+    borderRadius: 7,
+  },
+
+  barValue: {
+    width: 40,
+    fontSize: 11,
+    color: '#34A853',
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+
   rideCard: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  rideHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  rideDate: { fontSize: 12, color: THEME_COLORS.subtext },
-  co2Badge: { backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
-  co2BadgeText: { fontSize: 11, color: THEME_COLORS.primary, fontWeight: '700' },
-  rideRoute: { fontSize: 14, color: THEME_COLORS.text, fontWeight: '500', marginBottom: 2 },
-  rideDistance: { fontSize: 12, color: THEME_COLORS.subtext },
-  emptyState: { alignItems: 'center', paddingVertical: 40 },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: THEME_COLORS.text },
-  emptySubtitle: { color: THEME_COLORS.subtext, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+
+  rideHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 8,
+  },
+
+  rideDateWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  rideDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  co2Badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  co2BadgeText: {
+    fontSize: 11,
+    color: '#2E7D32',
+    fontWeight: '700',
+  },
+
+  rideRoute: {
+    fontSize: 14,
+    color: '#17321F',
+    fontWeight: '600',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+
+  rideMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  rideDistance: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  rideMetaDot: {
+    marginHorizontal: 6,
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 42,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#17321F',
+  },
+
+  emptySubtitle: {
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+    paddingHorizontal: 24,
+    fontSize: 14,
+  },
 });

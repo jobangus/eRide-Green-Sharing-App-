@@ -22,7 +22,6 @@ import {
   GraduationCap,
   LocateFixed,
   Flag,
-  Building2,
   Car,
   Zap,
   Clock3,
@@ -190,6 +189,9 @@ export default function RiderScreen() {
     setDropoff({ lat, lng, address: name });
   };
 
+  const isPickupSelected = (address: string) => pickup?.address === address;
+  const isDropoffSelected = (address: string) => dropoff?.address === address;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -243,24 +245,66 @@ export default function RiderScreen() {
 
               <View style={styles.quickRow}>
                 <TouchableOpacity
-                  style={styles.quickBtn}
+                  style={[
+                    styles.quickBtn,
+                    isPickupSelected('Clayton Campus') && styles.quickBtnSelected,
+                  ]}
                   onPress={() => setMonashPickup('Clayton Campus', -37.9105, 145.1362)}
                 >
-                  <GraduationCap size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>Clayton</Text>
+                  <GraduationCap
+                    size={14}
+                    color={isPickupSelected('Clayton Campus') ? '#1B5E20' : THEME_COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.quickText,
+                      isPickupSelected('Clayton Campus') && styles.quickTextSelected,
+                    ]}
+                  >
+                    Clayton
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.quickBtn}
+                  style={[
+                    styles.quickBtn,
+                    isPickupSelected('Caulfield Campus') && styles.quickBtnSelected,
+                  ]}
                   onPress={() => setMonashPickup('Caulfield Campus', -37.8777, 145.0452)}
                 >
-                  <GraduationCap size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>Caulfield</Text>
+                  <GraduationCap
+                    size={14}
+                    color={isPickupSelected('Caulfield Campus') ? '#1B5E20' : THEME_COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.quickText,
+                      isPickupSelected('Caulfield Campus') && styles.quickTextSelected,
+                    ]}
+                  >
+                    Caulfield
+                  </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.quickBtn} onPress={requestMyLocation}>
-                  <LocateFixed size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>My Location</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.quickBtn,
+                    isPickupSelected('Current Location') && styles.quickBtnSelected,
+                  ]}
+                  onPress={requestMyLocation}
+                >
+                  <LocateFixed
+                    size={14}
+                    color={isPickupSelected('Current Location') ? '#1B5E20' : THEME_COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.quickText,
+                      isPickupSelected('Current Location') && styles.quickTextSelected,
+                    ]}
+                  >
+                    My Location
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -278,27 +322,45 @@ export default function RiderScreen() {
 
               <View style={styles.quickRow}>
                 <TouchableOpacity
-                  style={styles.quickBtn}
+                  style={[
+                    styles.quickBtn,
+                    isDropoffSelected('Clayton Campus') && styles.quickBtnSelected,
+                  ]}
                   onPress={() => setMonashDropoff('Clayton Campus', -37.9105, 145.1362)}
                 >
-                  <GraduationCap size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>Clayton</Text>
+                  <GraduationCap
+                    size={14}
+                    color={isDropoffSelected('Clayton Campus') ? '#1B5E20' : THEME_COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.quickText,
+                      isDropoffSelected('Clayton Campus') && styles.quickTextSelected,
+                    ]}
+                  >
+                    Clayton
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.quickBtn}
+                  style={[
+                    styles.quickBtn,
+                    isDropoffSelected('Caulfield Campus') && styles.quickBtnSelected,
+                  ]}
                   onPress={() => setMonashDropoff('Caulfield Campus', -37.8777, 145.0452)}
                 >
-                  <GraduationCap size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>Caulfield</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.quickBtn}
-                  onPress={() => setMonashDropoff('Melbourne CBD', -37.8136, 144.9631)}
-                >
-                  <Building2 size={14} color={THEME_COLORS.primary} />
-                  <Text style={styles.quickText}>CBD</Text>
+                  <GraduationCap
+                    size={14}
+                    color={isDropoffSelected('Caulfield Campus') ? '#1B5E20' : THEME_COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.quickText,
+                      isDropoffSelected('Caulfield Campus') && styles.quickTextSelected,
+                    ]}
+                  >
+                    Caulfield
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -556,21 +618,30 @@ const styles = StyleSheet.create({
   },
 
   quickBtn: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: THEME_COLORS.primaryLight,
+    borderWidth: 1.5,
+    borderColor: '#34A853',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
 
+  quickBtnSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#34A853',
+  },
+
   quickText: {
     fontSize: 12,
-    color: THEME_COLORS.primary,
+    color: '#34A853',
     fontWeight: '600',
+  },
+
+  quickTextSelected: {
+    color: '#1B5E20',
   },
 
   selectedRow: {

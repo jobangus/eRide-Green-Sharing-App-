@@ -48,7 +48,7 @@
     ],
     "scheme": "moride",
     "extra": {
-      "API_BASE_URL": "http://172.20.10.8:8000",
+      "API_BASE_URL": "http://118.139.89.177:8081",
       "eas": {        
         "projectId": "moride-local-dev"
       }

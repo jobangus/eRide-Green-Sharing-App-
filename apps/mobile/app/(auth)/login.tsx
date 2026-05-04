@@ -36,8 +36,13 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await login(email.toLowerCase().trim(), password);
-      router.replace('/(tabs)');
+      const result = await login(email.toLowerCase().trim(), password);
+
+      if (result?.user?.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err: any) {
       Alert.alert('Login Failed', err.message);
     } finally {
@@ -131,6 +136,13 @@ export default function LoginScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.devEmail}>carol.rider@monash.edu</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => fillDevAccount('admin@moride.com')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.devEmail}>admin@moride.com</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

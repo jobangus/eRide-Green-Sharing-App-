@@ -16,7 +16,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   api: MoRideApiClient;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -28,7 +28,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const api = initApiClient(API_BASE_URL);
 
-  // Restore tokens on app start
   useEffect(() => {
     (async () => {
       try {
@@ -36,17 +35,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
           SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
         ]);
+
         if (accessToken && refreshToken) {
           api.setTokens(accessToken, refreshToken);
+
           api.onTokenRefresh(async (at, rt) => {
             await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, at);
             await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rt);
           });
+
           api.onAuthFailure(async () => {
             setUser(null);
             await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
             await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
           });
+
           const profile = await api.getMe();
           setUser(profile);
         }
@@ -60,18 +63,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const data = await api.login({ email, password });
+
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.access_token);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
+
     api.onTokenRefresh(async (at, rt) => {
       await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, at);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rt);
     });
+
     const profile = await api.getMe();
     setUser(profile);
+
+    return data;
   };
 
   const logout = async () => {
-    try { await api.logout(); } catch {}
+    try {
+      await api.logout();
+    } catch {}
+
     api.clearTokens();
     setUser(null);
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
@@ -84,10 +95,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{
-      user, isAuthenticated: !!user, isLoading,
-      api, login, logout, refreshProfile,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        api,
+        login,
+        logout,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

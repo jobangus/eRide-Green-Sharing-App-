@@ -36,6 +36,13 @@ VALUES
      'eve.both@monash.edu',
      '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
      'Eve Martinez', '+61400000005', 'both', TRUE)
+
+     ,
+    -- Admin: Mo-Ride Platform Admin
+    ('66666666-6666-6666-6666-666666666666',
+     'admin@moride.com',
+     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     'Mo-Ride Admin', '+61400000006', 'admin', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed Driver Profiles

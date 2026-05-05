@@ -18,6 +18,11 @@ import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
 import { useSocketIO } from '../../src/hooks/useSocketIO';
 import type { RideStatus, WsRideStatusUpdate, WsLocationUpdate } from '@moride/shared';
 import {
+  computeRoute,
+  formatDistance,
+  formatDuration,
+} from '../../src/services/route.service';
+import {
   MapPin,
   GraduationCap,
   LocateFixed,
@@ -37,12 +42,19 @@ interface LocationPoint {
   address?: string;
 }
 
+interface RouteInfo {
+  distanceText: string;
+  durationText: string;
+  encodedPolyline: string;
+}
+
 export default function RiderScreen() {
   const { api } = useAuth();
   const [appState, setAppState] = useState<AppState>('idle');
   const [pickup, setPickup] = useState<LocationPoint | null>(null);
   const [dropoff, setDropoff] = useState<LocationPoint | null>(null);
   const [estimate, setEstimate] = useState<any>(null);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [rideId, setRideId] = useState<string | null>(null);
   const [rideStatus, setRideStatus] = useState<RideStatus | null>(null);
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -65,6 +77,7 @@ export default function RiderScreen() {
         Alert.alert('Ride Cancelled', 'Your ride was cancelled.');
         setAppState('idle');
         setRideId(null);
+        setRideStatus(null);
       } else if (data.status === 'no_drivers') {
         Alert.alert('No Drivers', data.message || "No drivers available right now. We'll keep trying...");
       }
@@ -105,15 +118,45 @@ export default function RiderScreen() {
       return;
     }
 
+    if (pickup.address && dropoff.address && pickup.address === dropoff.address) {
+      Alert.alert('Invalid Route', 'Pickup and dropoff cannot be the same location.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const est = await api.estimateRide({
-        pickup_lat: pickup.lat,
-        pickup_lng: pickup.lng,
-        dropoff_lat: dropoff.lat,
-        dropoff_lng: dropoff.lng,
-      });
+      const [est, route] = await Promise.all([
+        api.estimateRide({
+          pickup_lat: pickup.lat,
+          pickup_lng: pickup.lng,
+          dropoff_lat: dropoff.lat,
+          dropoff_lng: dropoff.lng,
+        }),
+        computeRoute({
+          origin: {
+            latitude: pickup.lat,
+            longitude: pickup.lng,
+          },
+          destination: {
+            latitude: dropoff.lat,
+            longitude: dropoff.lng,
+          },
+          travelMode: 'DRIVE',
+        }),
+      ]);
+
       setEstimate(est);
+
+      if ('error' in route) {
+        setRouteInfo(null);
+      } else {
+        setRouteInfo({
+          distanceText: formatDistance(route.distanceMeters),
+          durationText: formatDuration(route.durationSeconds),
+          encodedPolyline: route.encodedPolyline,
+        });
+      }
+
       setAppState('estimate');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -159,6 +202,8 @@ export default function RiderScreen() {
             await api.cancelRide(rideId, { reason: 'Cancelled by rider' });
             setAppState('idle');
             setRideId(null);
+            setRideStatus(null);
+            setDriverLocation(null);
           } catch (err: any) {
             Alert.alert('Error', err.message);
           }
@@ -175,6 +220,8 @@ export default function RiderScreen() {
       setShowRating(false);
       setAppState('idle');
       setRideId(null);
+      setRideStatus(null);
+      setDriverLocation(null);
       Alert.alert('Thank you!', 'Your rating has been submitted.');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -385,6 +432,20 @@ export default function RiderScreen() {
               <Text style={styles.sheetTitle}>Ride Summary</Text>
 
               <View style={styles.fareCard}>
+                {routeInfo && (
+                  <>
+                    <View style={styles.fareRow}>
+                      <Text style={styles.fareLabel}>Route Distance</Text>
+                      <Text style={styles.fareValue}>{routeInfo.distanceText}</Text>
+                    </View>
+
+                    <View style={styles.fareRow}>
+                      <Text style={styles.fareLabel}>Route Time</Text>
+                      <Text style={styles.fareValue}>{routeInfo.durationText}</Text>
+                    </View>
+                  </>
+                )}
+
                 <View style={styles.fareRow}>
                   <Text style={styles.fareLabel}>Distance</Text>
                   <Text style={styles.fareValue}>{estimate.distance_km} km</Text>
@@ -437,7 +498,7 @@ export default function RiderScreen() {
                 style={styles.btn}
               />
               <Button
-                label="← Change Locations"
+                label="Change Locations"
                 onPress={() => setAppState('idle')}
                 variant="outline"
                 style={{ marginTop: 8 }}
@@ -470,6 +531,18 @@ export default function RiderScreen() {
                   {rideStatus?.toUpperCase().replace('_', ' ')}
                 </Text>
               </View>
+
+              {(rideStatus === 'matched' || rideStatus === 'confirmed') && (
+                <View style={styles.confirmCard}>
+                  <CheckCircle2 size={18} color={THEME_COLORS.primary} />
+                  <View style={styles.confirmTextWrap}>
+                    <Text style={styles.confirmTitle}>Booking Confirmed</Text>
+                    <Text style={styles.confirmSubtitle}>
+                      A driver has accepted your ride request and your trip is now active.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {rideStatus === 'enroute' && (
                 <View style={styles.statusRow}>
@@ -548,6 +621,8 @@ export default function RiderScreen() {
                   setShowRating(false);
                   setAppState('idle');
                   setRideId(null);
+                  setRideStatus(null);
+                  setDriverLocation(null);
                 }}
                 variant="outline"
                 style={{ marginTop: 8 }}
@@ -741,6 +816,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 12,
+  },
+
+  confirmCard: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
+  },
+
+  confirmTextWrap: {
+    flex: 1,
+  },
+
+  confirmTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1B5E20',
+    marginBottom: 4,
+  },
+
+  confirmSubtitle: {
+    fontSize: 13,
+    color: '#2F5D34',
+    lineHeight: 18,
   },
 
   statusRow: {

@@ -3,7 +3,13 @@
  * SecureStore uses iOS Keychain / Android Keystore under the hood.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { MoRideApiClient, initApiClient, UserProfile } from '@moride/shared';
 import { API_BASE_URL } from '../constants/config';
@@ -26,7 +32,9 @@ const AuthContext = createContext<AuthState | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const api = initApiClient(API_BASE_URL);
+
+  // IMPORTANT: create the API client only once
+  const api = useMemo(() => initApiClient(API_BASE_URL), []);
 
   useEffect(() => {
     (async () => {
@@ -59,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       }
     })();
-  }, []);
+  }, [api]);
 
   const login = async (email: string, password: string) => {
     const data = await api.login({ email, password });
@@ -67,9 +75,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.access_token);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
 
+    api.setTokens(data.access_token, data.refresh_token);
+
     api.onTokenRefresh(async (at, rt) => {
       await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, at);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rt);
+    });
+
+    api.onAuthFailure(async () => {
+      setUser(null);
+      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     });
 
     const profile = await api.getMe();

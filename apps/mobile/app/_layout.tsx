@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider } from '../src/store/auth';
-import { THEME_COLORS } from '../src/constants/config';
+import { THEME_COLORS, STRIPE_PUBLISHABLE_KEY } from '../src/constants/config';
 import { StatusBar } from 'expo-status-bar';
 
 const theme = {
@@ -15,11 +16,13 @@ const theme = {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <PaperProvider theme={theme}>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false }} />
-      </PaperProvider>
-    </AuthProvider>
+    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} merchantIdentifier="edu.monash.moride">
+      <AuthProvider>
+        <PaperProvider theme={theme}>
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false }} />
+        </PaperProvider>
+      </AuthProvider>
+    </StripeProvider>
   );
 }

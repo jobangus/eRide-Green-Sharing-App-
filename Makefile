@@ -35,8 +35,7 @@ import-vehicles:
 	DATABASE_URL=postgresql://moride:moride_secret@localhost:5432/moride python3 infra/import_vehicles.py $(CSV)
 
 seed:
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/003_seed.sql
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/005_demo_rides.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /migrations/003_seed.sql
 
 test:
 	@echo "Running ride-matching tests..."

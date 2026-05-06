@@ -41,9 +41,9 @@ def create_intent():
             return jsonify({"error": "not_found", "message": "Ride not found"}), 404
         if str(ride["rider_id"]) != g.user_id:
             return jsonify({"error": "forbidden", "message": "Not your ride"}), 403
-        if ride["status"] not in ("matched", "confirmed"):
+        if ride["status"] not in ("matched", "confirmed", "enroute", "arrived", "in_progress", "completed"):
             return jsonify({"error": "invalid_state",
-                            "message": "Payment can only be created for matched/confirmed rides"}), 409
+                            "message": "Payment can only be initiated for an active or completed ride"}), 409
 
         # Check no existing payment
         cur.execute("SELECT id, stripe_payment_intent_id FROM payments WHERE ride_id=%s", (ride_id,))

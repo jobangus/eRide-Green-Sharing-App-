@@ -48,8 +48,9 @@
     ],
     "scheme": "moride",
     "extra": {
-      "API_BASE_URL": "http://118.139.89.177:8081",
-      "eas": {        
+      "API_BASE_URL": "http://192.168.50.235:8000",
+      "STRIPE_PUBLISHABLE_KEY": "pk_test_YOUR_STRIPE_PUBLISHABLE_KEY",
+      "eas": {
         "projectId": "moride-local-dev"
       }
     }

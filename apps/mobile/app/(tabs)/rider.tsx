@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useStripe } from '@stripe/stripe-react-native';
 import { useAuth } from '../../src/store/auth';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
@@ -272,8 +271,6 @@ export default function RiderScreen() {
       setRideId(null);
       setRideStatus(null);
       setDriverLocation(null);
-      setPaymentDone(false);
-      setPassengerCount(1);
       Alert.alert('Thank you!', 'Your rating has been submitted.');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -666,25 +663,9 @@ export default function RiderScreen() {
             <View style={styles.centerContent}>
               <CheckCircle2 size={52} color={THEME_COLORS.primary} />
               <Text style={styles.matchingTitle}>Ride Complete!</Text>
-              {!paymentDone ? (
-                <>
-                  <Text style={styles.matchingSubtext}>
-                    {passengerCount > 1
-                      ? `Your share: A$${(estimate?.fare_per_rider ?? (estimate?.fare?.final_fare ?? 0) / passengerCount).toFixed(2)} (${passengerCount} riders)`
-                      : `Fare: A$${(estimate?.fare?.final_fare ?? 0).toFixed(2)}`}
-                  </Text>
-                  <Button
-                    label="Pay Now"
-                    onPress={handlePayment}
-                    loading={paymentLoading}
-                    style={styles.btn}
-                  />
-                </>
-              ) : (
-                <Text style={styles.matchingSubtext}>
-                  Payment confirmed. Rate your driver below.
-                </Text>
-              )}
+              <Text style={styles.matchingSubtext}>
+                Thanks for riding with Mo-Ride. Rate your driver below.
+              </Text>
             </View>
           )}
         </ScrollView>
@@ -721,8 +702,6 @@ export default function RiderScreen() {
                   setRideId(null);
                   setRideStatus(null);
                   setDriverLocation(null);
-                  setPaymentDone(false);
-                  setPassengerCount(1);
                 }}
                 variant="outline"
                 style={{ marginTop: 8 }}

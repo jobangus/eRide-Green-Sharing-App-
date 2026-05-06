@@ -30,7 +30,7 @@ migrate:
 	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/002_rls_policies.sql
 
 seed:
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/003_seed.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /migrations/003_seed.sql
 
 test:
 	@echo "Running ride-matching tests..."

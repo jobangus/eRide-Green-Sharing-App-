@@ -16,32 +16,32 @@ VALUES
     -- Driver 2: Bob
     ('22222222-2222-2222-2222-222222222222',
      'bob.driver@monash.edu',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$NVMFNDeWQ3Lz2V8MkVJKD.TG0mxhBfECkNDQCnyH12F1iq4hdVYBa',
      'Bob Smith', '+61400000002', 'driver', TRUE),
 
     -- Rider 1: Carol
     ('33333333-3333-3333-3333-333333333333',
      'carol.rider@monash.edu',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$NVMFNDeWQ3Lz2V8MkVJKD.TG0mxhBfECkNDQCnyH12F1iq4hdVYBa',
      'Carol Johnson', '+61400000003', 'rider', TRUE),
 
     -- Rider 2: Dave
     ('44444444-4444-4444-4444-444444444444',
      'dave.rider@monash.edu',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$NVMFNDeWQ3Lz2V8MkVJKD.TG0mxhBfECkNDQCnyH12F1iq4hdVYBa',
      'Dave Wilson', '+61400000004', 'rider', TRUE),
 
     -- Both (can drive and ride): Eve
     ('55555555-5555-5555-5555-555555555555',
      'eve.both@monash.edu',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$NVMFNDeWQ3Lz2V8MkVJKD.TG0mxhBfECkNDQCnyH12F1iq4hdVYBa',
      'Eve Martinez', '+61400000005', 'both', TRUE)
 
      ,
     -- Admin: Mo-Ride Platform Admin
     ('66666666-6666-6666-6666-666666666666',
      'admin@moride.com',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$NVMFNDeWQ3Lz2V8MkVJKD.TG0mxhBfECkNDQCnyH12F1iq4hdVYBa',
      'Mo-Ride Admin', '+61400000006', 'admin', TRUE)
 ON CONFLICT (email) DO NOTHING;
 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../src/store/auth';
+import type { SustainabilitySummary } from '@moride/shared';
 import {
   Hand,
   Navigation,
@@ -12,11 +13,33 @@ import {
 } from 'lucide-react-native';
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, api } = useAuth();
+  const [summary, setSummary] = useState<SustainabilitySummary | null>(null);
 
   const firstName = user?.name?.split(' ')[0] || 'there';
   const isDriver = user?.role === 'driver' || user?.role === 'both';
   const isRider = user?.role === 'rider' || user?.role === 'both';
+  const totalRides = summary?.total_rides ?? 0;
+  const co2Saved = summary?.total_co2_saved_kg ?? 0;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    api
+      .getSustainabilitySummary()
+      .then((data) => {
+        if (isMounted) {
+          setSummary(data);
+        }
+      })
+      .catch((error) => {
+        console.error('Home summary load error', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [api]);
 
   const primaryTitle = isRider ? 'Request a Ride' : 'Start Driving';
   const primaryDesc = isRider
@@ -41,13 +64,13 @@ export default function HomeScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Navigation size={18} color="#34A853" />
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{totalRides}</Text>
             <Text style={styles.statLabel}>Rides</Text>
           </View>
 
           <View style={styles.statCard}>
             <Leaf size={18} color="#34A853" />
-            <Text style={styles.statValue}>2.4kg</Text>
+            <Text style={styles.statValue}>{co2Saved.toFixed(2)}kg</Text>
             <Text style={styles.statLabel}>CO₂ saved</Text>
           </View>
 

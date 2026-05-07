@@ -22,6 +22,9 @@
 git clone <repo-url>
 cd eRide-Green-Sharing-App-
 make setup-env        # copies infra/.env.example → infra/.env
+
+For Window Powershell # instead of make setup-env
+use Copy-Item infra\.env.example infra\.env
 ```
 
 Edit `infra/.env` and fill in any secrets (Stripe, Google Maps). For local dev the defaults work out of the box.
@@ -30,6 +33,9 @@ Edit `infra/.env` and fill in any secrets (Stripe, Google Maps). For local dev t
 
 ```bash
 make dev
+
+For Window Powershell # instead of make dev
+Use docker compose -f infra/docker-compose.yml --env-file infra/.env up --build
 ```
 
 This builds and starts:
@@ -47,6 +53,11 @@ This builds and starts:
 
 ```bash
 make seed
+
+For Windows Powershell # instead of make seed
+Use: 
+docker compose -f infra/docker-compose.yml cp infra/migrations/003_seed.sql postgres:/003_seed.sql
+docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /003_seed.sql
 ```
 
 Creates 5 test accounts (password: `Password123!`):
@@ -61,7 +72,8 @@ Creates 5 test accounts (password: `Password123!`):
 
 ### 4. Start the mobile app
 
-```bash
+```bash 
+# No need to change these for Windows powershell
 cd apps/mobile
 npm install
 npx expo start

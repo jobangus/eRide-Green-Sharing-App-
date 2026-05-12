@@ -13,12 +13,15 @@ import re
 
 auth_bp = Blueprint("auth", __name__)
 
-MONASH_DOMAIN = "@monash.edu"
+MONASH_DOMAINS = ("@monash.edu", "@student.monash.edu")
 
 
 def _validate_monash_email(email: str) -> bool:
-    """Accept only @monash.edu addresses (case-insensitive)."""
-    return isinstance(email, str) and email.lower().strip().endswith(MONASH_DOMAIN)
+    """Accept only @monash.edu or @student.monash.edu addresses (case-insensitive)."""
+    if not isinstance(email, str):
+        return False
+    normalized = email.lower().strip()
+    return any(normalized.endswith(domain) for domain in MONASH_DOMAINS)
 
 
 def _validate_password(password: str) -> str | None:
@@ -51,7 +54,7 @@ def register():
     if not _validate_monash_email(email):
         return jsonify({
             "error": "invalid_email",
-            "message": "Only @monash.edu email addresses are accepted"
+            "message": "Only @monash.edu or @student.monash.edu email addresses are accepted"
         }), 400
     if not name:
         return jsonify({"error": "validation", "message": "Name is required"}), 400

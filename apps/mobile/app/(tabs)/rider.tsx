@@ -33,6 +33,7 @@ import {
   Clock3,
   CheckCircle2,
   Star,
+  Users,
 } from 'lucide-react-native';
 
 type AppState = 'idle' | 'selecting' | 'estimate' | 'matching' | 'active' | 'completed';
@@ -65,6 +66,7 @@ export default function RiderScreen() {
   const [rating, setRating] = useState(5);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [passengerCount, setPassengerCount] = useState(1);
   const mapRef = useRef<MapView>(null);
 
   const socketHandlers = {
@@ -135,6 +137,7 @@ export default function RiderScreen() {
           pickup_lng: pickup.lng,
           dropoff_lat: dropoff.lat,
           dropoff_lng: dropoff.lng,
+          passenger_count: passengerCount,
         }),
         computeRoute({
           origin: {
@@ -181,6 +184,7 @@ export default function RiderScreen() {
         dropoff_lat: dropoff.lat,
         dropoff_lng: dropoff.lng,
         dropoff_address: dropoff.address,
+        passenger_count: passengerCount,
       });
 
       setRideId(res.ride_id);
@@ -269,6 +273,7 @@ export default function RiderScreen() {
       setRideStatus(null);
       setDriverLocation(null);
       setPaymentDone(false);
+      setPassengerCount(1);
       Alert.alert('Thank you!', 'Your rating has been submitted.');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -465,6 +470,25 @@ export default function RiderScreen() {
                 </View>
               )}
 
+              <View style={styles.labelRow}>
+                <Users size={15} color={THEME_COLORS.subtext} />
+                <Text style={styles.label}>Passengers (split fare)</Text>
+              </View>
+              <View style={styles.quickRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <TouchableOpacity
+                    key={n}
+                    style={[styles.quickBtn, passengerCount === n && styles.quickBtnSelected]}
+                    onPress={() => setPassengerCount(n)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.quickText, passengerCount === n && styles.quickTextSelected]}>
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Button
                 label="Get Fare Estimate"
                 onPress={getEstimate}
@@ -531,11 +555,22 @@ export default function RiderScreen() {
                 )}
 
                 <View style={[styles.fareRow, styles.fareTotalRow]}>
-                  <Text style={styles.fareTotalLabel}>Total Fare</Text>
+                  <Text style={styles.fareTotalLabel}>
+                    {passengerCount > 1 ? `Total Fare (${passengerCount} riders)` : 'Total Fare'}
+                  </Text>
                   <Text style={styles.fareTotalValue}>
                     ${estimate.fare.final_fare.toFixed(2)}
                   </Text>
                 </View>
+
+                {passengerCount > 1 && (
+                  <View style={[styles.fareRow, styles.farePerRiderRow]}>
+                    <Text style={styles.farePerRiderLabel}>Your Share</Text>
+                    <Text style={styles.farePerRiderValue}>
+                      ${(estimate.fare_per_rider ?? estimate.fare.final_fare / passengerCount).toFixed(2)}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <Button
@@ -634,9 +669,9 @@ export default function RiderScreen() {
               {!paymentDone ? (
                 <>
                   <Text style={styles.matchingSubtext}>
-                    Fare: A${estimate?.fare_estimate != null
-                      ? Number(estimate.fare_estimate).toFixed(2)
-                      : '—'}
+                    {passengerCount > 1
+                      ? `Your share: A$${(estimate?.fare_per_rider ?? (estimate?.fare?.final_fare ?? 0) / passengerCount).toFixed(2)} (${passengerCount} riders)`
+                      : `Fare: A$${(estimate?.fare?.final_fare ?? 0).toFixed(2)}`}
                   </Text>
                   <Button
                     label="Pay Now"
@@ -687,6 +722,7 @@ export default function RiderScreen() {
                   setRideStatus(null);
                   setDriverLocation(null);
                   setPaymentDone(false);
+                  setPassengerCount(1);
                 }}
                 variant="outline"
                 style={{ marginTop: 8 }}
@@ -847,6 +883,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: THEME_COLORS.primary,
+  },
+
+  farePerRiderRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#C8E6C9',
+    paddingTop: 10,
+    marginTop: 4,
+    backgroundColor: '#E8F5E9',
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+
+  farePerRiderLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+
+  farePerRiderValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1B5E20',
   },
 
   centerContent: {

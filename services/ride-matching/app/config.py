@@ -29,3 +29,4 @@ class Config:
     DRIVER_ACCEPT_TIMEOUT_SECONDS: int = int(os.getenv("DRIVER_ACCEPT_TIMEOUT_SECONDS", "30"))
 
     FLASK_ENV: str = os.getenv("FLASK_ENV", "production")
+    # CO2

@@ -399,10 +399,24 @@ def complete_ride(ride_id: str):
             (ride_id, g.user_id)
         )
 
+        # Look up driver's actual vehicle CO2 rating
+        cur.execute(
+            """SELECT v.co2_combined_g_per_km
+               FROM driver_profiles dp
+               LEFT JOIN vehicles v ON v.id = dp.vehicle_id
+               WHERE dp.user_id = %s""",
+            (g.user_id,)
+        )
+        vehicle_row = cur.fetchone()
+        co2_per_km_kg = None
+        if vehicle_row and vehicle_row["co2_combined_g_per_km"]:
+            co2_per_km_kg = vehicle_row["co2_combined_g_per_km"] / 1000.0
+
         # Compute and store sustainability metrics
         co2 = compute_co2(
             float(ride["distance_km"] or 1),
             passengers=ride["passenger_count"] or 1,
+            co2_per_km_kg=co2_per_km_kg,
         )
         cur.execute(
             """INSERT INTO sustainability

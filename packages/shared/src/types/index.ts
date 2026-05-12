@@ -237,6 +237,10 @@ export interface SustainabilityRideItem {
   baseline_co2_kg: number;
   actual_co2_kg: number;
   passengers: number;
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_year?: number;
+  vehicle_fuel_type?: string;
 }
 
 // ─── Payments ────────────────────────────────────────────────

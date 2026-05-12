@@ -81,9 +81,15 @@ def ride_list():
                 s.co2_saved_kg,
                 s.baseline_co2_kg,
                 s.actual_co2_kg,
-                s.passengers
+                s.passengers,
+                v.make AS vehicle_make,
+                v.model AS vehicle_model,
+                v.year AS vehicle_year,
+                v.fuel_type AS vehicle_fuel_type
                FROM rides r
                JOIN sustainability s ON s.ride_id = r.id
+               LEFT JOIN driver_profiles dp ON dp.user_id = r.driver_id
+               LEFT JOIN vehicles v ON v.id = dp.vehicle_id
                WHERE (r.rider_id = %s OR r.driver_id = %s)
                  AND r.status = 'completed'
                ORDER BY r.created_at DESC
@@ -101,6 +107,10 @@ def ride_list():
                 "baseline_co2_kg": float(row["baseline_co2_kg"]),
                 "actual_co2_kg": float(row["actual_co2_kg"]),
                 "passengers": row["passengers"],
+                "vehicle_make": row["vehicle_make"],
+                "vehicle_model": row["vehicle_model"],
+                "vehicle_year": row["vehicle_year"],
+                "vehicle_fuel_type": row["vehicle_fuel_type"],
             }
             for row in cur.fetchall()
         ]

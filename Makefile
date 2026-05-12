@@ -1,4 +1,4 @@
-.PHONY: dev down logs migrate seed test clean help
+.PHONY: dev down logs migrate seed test clean help import-vehicles
 
 # Default target
 help:
@@ -6,8 +6,9 @@ help:
 	@echo "  make dev        - Start all services with docker compose"
 	@echo "  make down       - Stop and remove containers"
 	@echo "  make logs       - Follow logs from all services"
-	@echo "  make migrate    - Apply DB migrations (runs automatically on first start)"
-	@echo "  make seed       - Seed sample data into the database"
+	@echo "  make migrate    - Apply DB migrations (run after pulling new migrations)"
+	@echo "  make seed       - Seed all sample and demo data into the database"
+	@echo "  make import-vehicles CSV=<path> - Import vehicle CO2 data from CSV"
 	@echo "  make test       - Run all backend tests"
 	@echo "  make clean      - Remove all containers + volumes (destructive!)"
 	@echo "  make setup-env  - Copy .env.example to .env (first time setup)"
@@ -25,11 +26,17 @@ logs:
 	docker compose -f infra/docker-compose.yml logs -f
 
 migrate:
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /migrations/001_initial_schema.sql
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /migrations/002_rls_policies.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/002_rls_policies.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/004_vehicles.sql
+
+import-vehicles:
+	@test -n "$(CSV)" || (echo "Usage: make import-vehicles CSV=/path/to/vehicles.csv" && exit 1)
+	DATABASE_URL=postgresql://moride:moride_secret@localhost:5432/moride python3 infra/import_vehicles.py $(CSV)
 
 seed:
-	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /migrations/003_seed.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/003_seed.sql
+	docker compose -f infra/docker-compose.yml exec postgres psql -U moride -d moride -f /docker-entrypoint-initdb.d/005_demo_rides.sql
 
 test:
 	@echo "Running ride-matching tests..."

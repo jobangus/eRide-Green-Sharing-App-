@@ -9,18 +9,28 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, {
+  Marker,
+  PROVIDER_GOOGLE,
+  Polyline,
+  type LatLng,
+} from 'react-native-maps';
 import * as Location from 'expo-location';
 import {
   CarFront,
   MapPin,
   Star,
+  Flag,
+  Route,
+  LocateFixed,
+  CheckCircle2,
 } from 'lucide-react-native';
 
 import { useAuth } from '../../src/store/auth';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
 import { useSocketIO } from '../../src/hooks/useSocketIO';
+import { computeRoute, formatDistance, formatDuration } from '../../src/services/route.service';
 import type { WsRideRequest, WsRideStatusUpdate, RideStatus } from '@moride/shared';
 
 type DriverAppState =
@@ -29,6 +39,25 @@ type DriverAppState =
   | 'request_incoming'
   | 'active_ride'
   | 'completed';
+
+interface RouteSummary {
+  distanceText: string;
+  durationText: string;
+}
+
+interface RidePoint {
+  lat: number;
+  lng: number;
+  address?: string;
+}
+
+const USE_TEST_LOCATION = true;
+
+const TEST_DRIVER_LOCATION = {
+  lat: -37.9105,
+  lng: 145.1362,
+  label: 'Monash Clayton Test Location',
+};
 
 export default function DriverScreen() {
   const { api } = useAuth();
@@ -43,8 +72,47 @@ export default function DriverScreen() {
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(5);
 
+  const [activePickup, setActivePickup] = useState<RidePoint | null>(null);
+  const [activeDropoff, setActiveDropoff] = useState<RidePoint | null>(null);
+  const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
+  const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
+  const mapRef = useRef<MapView>(null);
+
+  const clearRideVisuals = () => {
+    setActivePickup(null);
+    setActiveDropoff(null);
+    setRouteCoords([]);
+    setRouteSummary(null);
+  };
+
+  const extractRidePoints = (requestData: WsRideRequest | null) => {
+    if (!requestData) return;
+
+    const raw = requestData as any;
+
+    setActivePickup({
+      lat: raw.pickup_lat,
+      lng: raw.pickup_lng,
+      address: raw.pickup_address || 'Pickup Location',
+    });
+
+    if (
+      typeof raw.dropoff_lat === 'number' &&
+      typeof raw.dropoff_lng === 'number'
+    ) {
+      setActiveDropoff({
+        lat: raw.dropoff_lat,
+        lng: raw.dropoff_lng,
+        address: raw.dropoff_address || 'Dropoff Location',
+      });
+    } else {
+      setActiveDropoff(null);
+    }
+  };
 
   const handleDecline = () => {
     if (!pendingRequest) return;
@@ -52,6 +120,7 @@ export default function DriverScreen() {
     if (countdownRef.current) clearInterval(countdownRef.current);
     declineRide(pendingRequest.ride_id);
     setPendingRequest(null);
+    clearRideVisuals();
     setAppState('online');
   };
 
@@ -59,6 +128,7 @@ export default function DriverScreen() {
     {
       onRideRequest: (data: WsRideRequest) => {
         setPendingRequest(data);
+        extractRidePoints(data);
         setAppState('request_incoming');
         startCountdown(data.timeout_seconds);
       },
@@ -74,6 +144,7 @@ export default function DriverScreen() {
           Alert.alert('Ride Cancelled', 'The rider cancelled the ride.');
           setAppState('online');
           setRideId(null);
+          clearRideVisuals();
         }
       },
     },
@@ -97,28 +168,37 @@ export default function DriverScreen() {
     }, 1000);
   };
 
-  const goOnline = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+ const goOnline = async () => {
+  const { status } = await Location.requestForegroundPermissionsAsync();
 
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Location permission is needed to drive.');
-      return;
-    }
+  if (status !== 'granted') {
+    Alert.alert('Permission Required', 'Location permission is needed to drive.');
+    return;
+  }
 
+  let lat: number;
+  let lng: number;
+
+  if (USE_TEST_LOCATION) {
+    lat = TEST_DRIVER_LOCATION.lat;
+    lng = TEST_DRIVER_LOCATION.lng;
+  } else {
     const loc = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
 
-    const lat = loc.coords.latitude;
-    const lng = loc.coords.longitude;
+    lat = loc.coords.latitude;
+    lng = loc.coords.longitude;
+  }
 
-    setCurrentLocation({ lat, lng });
+  setCurrentLocation({ lat, lng });
 
-    setLoading(true);
-    try {
-      await api.goOnline({ lat, lng });
-      setAppState('online');
+  setLoading(true);
+  try {
+    await api.goOnline({ lat, lng });
+    setAppState('online');
 
+    if (!USE_TEST_LOCATION) {
       locationWatchRef.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -133,12 +213,13 @@ export default function DriverScreen() {
           api.updateDriverLocation(latitude, longitude).catch(() => {});
         }
       );
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err: any) {
+    Alert.alert('Error', err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const goOffline = async () => {
     locationWatchRef.current?.remove();
@@ -147,6 +228,7 @@ export default function DriverScreen() {
       await api.goOffline();
     } catch {}
 
+    clearRideVisuals();
     setAppState('offline');
   };
 
@@ -155,6 +237,7 @@ export default function DriverScreen() {
 
     if (countdownRef.current) clearInterval(countdownRef.current);
 
+    extractRidePoints(pendingRequest);
     acceptRide(pendingRequest.ride_id);
     setRideId(pendingRequest.ride_id);
     setRideStatus('matched');
@@ -195,9 +278,138 @@ export default function DriverScreen() {
       setShowRating(false);
       setRideId(null);
       setAppState('online');
+      clearRideVisuals();
       Alert.alert('Thank you', 'Your rating has been submitted.');
     } catch {}
   };
+
+  const decodePolyline = (encoded: string): LatLng[] => {
+    const points: LatLng[] = [];
+    let index = 0;
+    const len = encoded.length;
+    let lat = 0;
+    let lng = 0;
+
+    while (index < len) {
+      let b;
+      let shift = 0;
+      let result = 0;
+
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+
+      const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+
+      const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+      lng += dlng;
+
+      points.push({
+        latitude: lat / 1e5,
+        longitude: lng / 1e5,
+      });
+    }
+
+    return points;
+  };
+
+  useEffect(() => {
+    const updateRoute = async () => {
+      if (!currentLocation || appState !== 'active_ride') {
+        setRouteCoords([]);
+        setRouteSummary(null);
+        return;
+      }
+
+      let destination: RidePoint | null = null;
+
+      if (rideStatus === 'matched' || rideStatus === 'enroute' || rideStatus === 'arrived') {
+        destination = activePickup;
+      } else if (rideStatus === 'in_progress') {
+        destination = activeDropoff;
+      }
+
+      if (!destination) {
+        setRouteCoords([]);
+        setRouteSummary(null);
+        return;
+      }
+
+      setRouteLoading(true);
+      try {
+        const route = await computeRoute({
+          origin: {
+            latitude: currentLocation.lat,
+            longitude: currentLocation.lng,
+          },
+          destination: {
+            latitude: destination.lat,
+            longitude: destination.lng,
+          },
+          travelMode: 'DRIVE',
+        });
+
+        if ('error' in route) {
+          setRouteCoords([]);
+          setRouteSummary(null);
+        } else {
+          setRouteCoords(decodePolyline(route.encodedPolyline));
+          setRouteSummary({
+            distanceText: formatDistance(route.distanceMeters),
+            durationText: formatDuration(route.durationSeconds),
+          });
+        }
+      } catch {
+        setRouteCoords([]);
+        setRouteSummary(null);
+      } finally {
+        setRouteLoading(false);
+      }
+    };
+
+    updateRoute();
+  }, [currentLocation, rideStatus, activePickup, activeDropoff, appState]);
+
+  useEffect(() => {
+    if (!mapRef.current || !currentLocation) return;
+
+    let points: LatLng[] = [{ latitude: currentLocation.lat, longitude: currentLocation.lng }];
+
+    if (appState === 'request_incoming' && activePickup) {
+      points.push({ latitude: activePickup.lat, longitude: activePickup.lng });
+    }
+
+    if (appState === 'active_ride') {
+      if (rideStatus === 'matched' || rideStatus === 'enroute' || rideStatus === 'arrived') {
+        if (activePickup) {
+          points.push({ latitude: activePickup.lat, longitude: activePickup.lng });
+        }
+      } else if (rideStatus === 'in_progress') {
+        if (activeDropoff) {
+          points.push({ latitude: activeDropoff.lat, longitude: activeDropoff.lng });
+        }
+      }
+    }
+
+    if (points.length >= 2) {
+      mapRef.current.fitToCoordinates(points, {
+        edgePadding: { top: 120, right: 60, bottom: 220, left: 60 },
+        animated: true,
+      });
+    }
+  }, [currentLocation, activePickup, activeDropoff, rideStatus, appState]);
 
   useEffect(() => {
     return () => {
@@ -206,33 +418,61 @@ export default function DriverScreen() {
     };
   }, []);
 
+  const getStageText = () => {
+    if (rideStatus === 'matched') return 'Ride accepted. Start driving to the pickup point.';
+    if (rideStatus === 'enroute') return 'You are currently heading to the rider’s pickup location.';
+    if (rideStatus === 'arrived') return 'You have arrived at pickup. Wait for the rider to board.';
+    if (rideStatus === 'in_progress') return 'Ride is active. Continue driving to the destination.';
+    return 'Waiting for the next trip stage.';
+  };
+
+  const getTargetLabel = () => {
+    if (rideStatus === 'matched' || rideStatus === 'enroute' || rideStatus === 'arrived') {
+      return activePickup?.address || 'Pickup Location';
+    }
+    if (rideStatus === 'in_progress') {
+      return activeDropoff?.address || 'Dropoff Location';
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <MapView
+          ref={mapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={DEFAULT_MAP_REGION}
           showsUserLocation
-          region={
-            currentLocation
-              ? {
-                  latitude: currentLocation.lat,
-                  longitude: currentLocation.lng,
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
-                }
-              : undefined
-          }
         >
-          {pendingRequest && (
+          {activePickup && (
             <Marker
               coordinate={{
-                latitude: pendingRequest.pickup_lat,
-                longitude: pendingRequest.pickup_lng,
+                latitude: activePickup.lat,
+                longitude: activePickup.lng,
               }}
-              title="Rider Pickup"
+              title="Pickup"
               pinColor={THEME_COLORS.primary}
+            />
+          )}
+
+          {activeDropoff && (
+            <Marker
+              coordinate={{
+                latitude: activeDropoff.lat,
+                longitude: activeDropoff.lng,
+              }}
+              title="Dropoff"
+              pinColor={THEME_COLORS.error}
+            />
+          )}
+
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor={THEME_COLORS.primary}
+              strokeWidth={5}
             />
           )}
         </MapView>
@@ -266,7 +506,7 @@ export default function DriverScreen() {
 
               <Text style={styles.sheetTitle}>Waiting for Requests</Text>
               <Text style={styles.subtitle}>
-                You'll be notified when a nearby rider requests a ride.
+                You&apos;ll be notified when a nearby rider requests a ride.
               </Text>
 
               <Button
@@ -286,6 +526,38 @@ export default function DriverScreen() {
                 <Text style={styles.statusText}>
                   {rideStatus?.toUpperCase().replace('_', ' ')}
                 </Text>
+              </View>
+
+              <View style={styles.liveCard}>
+                <View style={styles.liveCardHeader}>
+                  <LocateFixed size={16} color={THEME_COLORS.primary} />
+                  <Text style={styles.liveCardTitle}>Live Trip Guidance</Text>
+                </View>
+
+                <Text style={styles.liveCardText}>{getStageText()}</Text>
+
+                {getTargetLabel() && (
+                  <View style={styles.targetRow}>
+                    <MapPin size={14} color={THEME_COLORS.primary} />
+                    <Text style={styles.targetText}>{getTargetLabel()}</Text>
+                  </View>
+                )}
+
+                {routeLoading ? (
+                  <Text style={styles.routeMetaText}>Updating route...</Text>
+                ) : routeSummary ? (
+                  <View style={styles.routeMetaRow}>
+                    <View style={styles.routeMetaPill}>
+                      <Route size={14} color={THEME_COLORS.primary} />
+                      <Text style={styles.routeMetaText}>{routeSummary.distanceText}</Text>
+                    </View>
+
+                    <View style={styles.routeMetaPill}>
+                      <Flag size={14} color={THEME_COLORS.primary} />
+                      <Text style={styles.routeMetaText}>{routeSummary.durationText}</Text>
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.actionBtns}>
@@ -348,8 +620,22 @@ export default function DriverScreen() {
                     </View>
 
                     <Text style={styles.reqValue}>
-                      {pendingRequest.pickup_lat.toFixed(4)}, {pendingRequest.pickup_lng.toFixed(4)}
+                      {activePickup?.address ||
+                        `${pendingRequest.pickup_lat.toFixed(4)}, ${pendingRequest.pickup_lng.toFixed(4)}`}
                     </Text>
+
+                    {activeDropoff && (
+                      <>
+                        <View style={[styles.reqLabelRow, { marginTop: 10 }]}>
+                          <Flag size={14} color={THEME_COLORS.primary} strokeWidth={2.2} />
+                          <Text style={styles.reqLabel}>Dropoff</Text>
+                        </View>
+                        <Text style={styles.reqValue}>
+                          {activeDropoff.address ||
+                            `${activeDropoff.lat.toFixed(4)}, ${activeDropoff.lng.toFixed(4)}`}
+                        </Text>
+                      </>
+                    )}
                   </View>
 
                   <View style={styles.btnRow}>
@@ -396,6 +682,7 @@ export default function DriverScreen() {
                   setShowRating(false);
                   setRideId(null);
                   setAppState('online');
+                  clearRideVisuals();
                 }}
                 variant="outline"
                 style={{ marginTop: 8, width: '100%' }}
@@ -422,7 +709,7 @@ const styles = StyleSheet.create({
     minHeight: 280,
   },
   sheet: {
-    maxHeight: '45%',
+    maxHeight: '48%',
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -483,6 +770,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 12,
+  },
+  liveCard: {
+    backgroundColor: '#F6FBF7',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DCEFE0',
+  },
+  liveCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  liveCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: THEME_COLORS.text,
+  },
+  liveCardText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: THEME_COLORS.subtext,
+    marginBottom: 10,
+  },
+  targetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  targetText: {
+    flex: 1,
+    fontSize: 13,
+    color: THEME_COLORS.text,
+    fontWeight: '600',
+  },
+  routeMetaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  routeMetaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+  },
+  routeMetaText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1B5E20',
   },
   actionBtns: {
     gap: 8,

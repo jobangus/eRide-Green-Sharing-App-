@@ -3,7 +3,7 @@ Socket.IO event handlers for ride-matching service.
 
 Events received from clients:
   - join_ride_room   { ride_id }       — rider/driver join ride-specific room
-  - join_driver_room { driver_id }     — driver registers for incoming requests
+  - join_driver_room {}                — driver registers for incoming requests
   - ride_accept      { ride_id }       — driver accepts a ride request
   - ride_decline     { ride_id }       — driver declines a ride request
   - driver_location  { lat, lng }      — driver broadcasts location update
@@ -11,14 +11,14 @@ Events received from clients:
   - driver_offline   {}                — driver goes offline
 
 Events emitted by server:
-  - ride_request     { ride_id, pickup_lat, pickup_lng, timeout_seconds }
+  - ride_request       { ride_id, pickup_lat, pickup_lng, pickup_address, dropoff_lat, dropoff_lng, dropoff_address, timeout_seconds }
   - ride_status_update { ride_id, status, ... }
-  - ride_cancel      { ride_id, reason, cancelled_by }
-  - location_update  { driver_id, lat, lng }
+  - ride_cancel        { ride_id, reason, cancelled_by }
+  - location_update    { driver_id, lat, lng }
 """
 
 from flask import request
-from flask_socketio import SocketIO, join_room, leave_room, emit
+from flask_socketio import SocketIO, join_room, emit
 from app.auth_middleware import get_user_from_token
 from app.routes.rides import handle_ride_accept, handle_ride_decline
 
@@ -30,7 +30,6 @@ def register_events(socketio: SocketIO, redis_client):
         user = get_user_from_token(token)
         if not user:
             return False  # reject connection
-        # Store user info in session
         request.environ["user"] = user
         print(f"[socket] Connected: {user['user_id']}")
 
@@ -52,8 +51,10 @@ def register_events(socketio: SocketIO, redis_client):
         user = request.environ.get("user", {})
         driver_id = user.get("user_id")
         if driver_id:
-            join_room(f"driver_{driver_id}")
-            emit("joined", {"room": f"driver_{driver_id}"})
+            # IMPORTANT: must match room used in rides.py
+            join_room(driver_id)
+            emit("joined", {"room": driver_id})
+            print(f"[socket] Driver joined room: {driver_id}")
 
     @socketio.on("ride_accept")
     def handle_accept(data):
@@ -81,10 +82,8 @@ def register_events(socketio: SocketIO, redis_client):
         if lat is None or lng is None:
             return
 
-        # Update Redis GEO
         redis_client.geoadd("driver_locations", (float(lng), float(lat), driver_id))
 
-        # Broadcast to any ride rooms this driver is in
         ride_id = data.get("ride_id")
         if ride_id:
             socketio.emit(

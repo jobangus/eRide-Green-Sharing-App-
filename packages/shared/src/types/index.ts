@@ -266,6 +266,10 @@ export interface WsRideRequest {
   ride_id: string;
   pickup_lat: number;
   pickup_lng: number;
+  pickup_address?: string;
+  dropoff_lat: number;
+  dropoff_lng: number;
+  dropoff_address?: string;
   timeout_seconds: number;
 }
 

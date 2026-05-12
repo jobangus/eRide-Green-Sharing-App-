@@ -1,13 +1,17 @@
 import Constants from 'expo-constants';
 import { MONASH_CLAYTON, MONASH_CAULFIELD } from '../constants/config';
 
-const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 
-    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_KEY =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 const ROUTES_API_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 
 export interface RouteRequest {
-  origin: { };
+  origin: {
+    latitude: number;
+    longitude: number;
+  };
   destination: {
     latitude: number;
     longitude: number;
@@ -20,7 +24,7 @@ export interface RouteRequest {
 
 export interface RouteResponse {
   distanceMeters: number;
-  duration: string; // ISO 8601 duration format (e.g., "360s")
+  duration: string; // e.g. "360s"
   durationSeconds: number;
   encodedPolyline: string;
 }
@@ -77,7 +81,8 @@ export async function computeRoute(
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+        'X-Goog-FieldMask':
+          'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
       },
       body: JSON.stringify(requestBody),
     });
@@ -99,8 +104,6 @@ export async function computeRoute(
     }
 
     const route = data.routes[0];
-    
-    // Parse duration from ISO 8601 format (e.g., "360s" -> 360)
     const durationSeconds = parseInt(route.duration.replace('s', ''), 10);
 
     return {
@@ -164,10 +167,13 @@ export function formatDistance(distanceMeters: number): string {
  */
 export function formatDuration(durationSeconds: number): string {
   const minutes = Math.round(durationSeconds / 60);
+
   if (minutes < 60) {
     return `${minutes} min`;
   }
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
+
   return `${hours}h ${remainingMinutes}m`;
 }

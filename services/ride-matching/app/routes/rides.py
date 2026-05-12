@@ -145,7 +145,18 @@ def request_ride():
     socketio = _get_socketio()
     threading.Thread(
         target=_run_matching,
-        args=(ride_id, p_lat, p_lng, g.user_id, socketio, redis),
+        args=(
+            ride_id,
+            p_lat,
+            p_lng,
+            pickup_address,
+            d_lat,
+            d_lng,
+            dropoff_address,
+            g.user_id,
+            socketio,
+            redis,
+        ),
         daemon=True,
     ).start()
 
@@ -160,13 +171,22 @@ def request_ride():
     }), 202
 
 
-def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
-                  rider_id: str, socketio, redis):
+def _run_matching(
+    ride_id: str,
+    pickup_lat: float,
+    pickup_lng: float,
+    pickup_address: str | None,
+    dropoff_lat: float,
+    dropoff_lng: float,
+    dropoff_address: str | None,
+    rider_id: str,
+    socketio,
+    redis,
+):
     """
     Background thread: iterates through ranked drivers until one accepts.
     """
     from app.config import Config
-    import time
 
     radius = Config.DRIVER_SEARCH_RADIUS_KM
     timeout = Config.DRIVER_ACCEPT_TIMEOUT_SECONDS
@@ -174,7 +194,6 @@ def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
     drivers_raw = get_active_drivers_from_redis(redis, pickup_lat, pickup_lng, radius)
     declined_drivers = set()
 
-    # Enrich with metadata
     candidates = []
     for d in drivers_raw:
         meta = get_driver_metadata_from_redis(redis, d["driver_id"])
@@ -188,28 +207,32 @@ def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
         if driver_id in declined_drivers:
             continue
 
-        # Create matching session
         session = MatchingSession(ride_id=ride_id, timeout_seconds=timeout)
         with _sessions_lock:
             _matching_sessions[ride_id] = session
 
-        # Mark driver as temporarily unavailable
         redis.hset(f"driver_meta:{driver_id}", "is_available", "0")
 
-        # Push ride request to driver via Socket.IO
         socketio.emit(
             "ride_request",
             {
                 "ride_id": ride_id,
                 "pickup_lat": pickup_lat,
                 "pickup_lng": pickup_lng,
+                "pickup_address": pickup_address,
+                "dropoff_lat": dropoff_lat,
+                "dropoff_lng": dropoff_lng,
+                "dropoff_address": dropoff_address,
                 "timeout_seconds": timeout,
             },
-            to=f"driver_{driver_id}",
+            room=driver_id,
         )
 
-        # Emit matching_started event to ride room
-        socketio.emit("ride_status_update", {"ride_id": ride_id, "status": "matching"}, to=f"ride_{ride_id}")
+        socketio.emit(
+            "ride_status_update",
+            {"ride_id": ride_id, "status": "matching"},
+            to=f"ride_{ride_id}",
+        )
 
         accepted = session.wait_for_response()
 
@@ -217,7 +240,6 @@ def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
             _matching_sessions.pop(ride_id, None)
 
         if accepted:
-            # Assign driver to ride in DB
             with get_db() as conn:
                 cur = conn.cursor()
                 cur.execute(
@@ -229,7 +251,6 @@ def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
                     (ride_id, driver_id, f'{{"driver_id":"{driver_id}"}}')
                 )
 
-            # Notify rider
             socketio.emit(
                 "ride_status_update",
                 {"ride_id": ride_id, "status": "matched", "driver_id": driver_id},
@@ -238,11 +259,9 @@ def _run_matching(ride_id: str, pickup_lat: float, pickup_lng: float,
             redis.decr("stats:active_requests")
             return
         else:
-            # Driver declined or timed out — restore availability and try next
             declined_drivers.add(driver_id)
             redis.hset(f"driver_meta:{driver_id}", "is_available", "1")
 
-    # No drivers accepted — queue for retry
     _queue_retry(ride_id, rider_id, pickup_lat, pickup_lng)
 
     with get_db() as conn:
@@ -307,7 +326,6 @@ def cancel_ride(ride_id: str):
             (ride_id, g.user_id, f'{{"reason":"{reason}"}}')
         )
 
-    # Signal any active matching session
     with _sessions_lock:
         session = _matching_sessions.get(ride_id)
         if session:
@@ -333,13 +351,14 @@ def cancel_ride(ride_id: str):
 def update_status(ride_id: str):
     """
     POST /rides/{rideId}/status
-    Body: { status }  — driver progresses ride through states
+    Body: { status } — driver progresses ride through states
     Valid transitions for driver:
       matched -> confirmed -> enroute -> arrived -> in_progress
     """
     data = request.get_json(silent=True) or {}
     new_status = data.get("status", "")
     valid = ["confirmed", "enroute", "arrived", "in_progress"]
+
     if new_status not in valid:
         return jsonify({"error": "validation", "message": f"Status must be one of: {valid}"}), 400
 
@@ -347,16 +366,14 @@ def update_status(ride_id: str):
         cur = conn.cursor()
         cur.execute("SELECT driver_id, rider_id, status FROM rides WHERE id=%s", (ride_id,))
         ride = cur.fetchone()
+
         if not ride:
             return jsonify({"error": "not_found", "message": "Ride not found"}), 404
+
         if str(ride["driver_id"]) != g.user_id:
             return jsonify({"error": "forbidden", "message": "Only the assigned driver can update ride status"}), 403
 
         cur.execute("UPDATE rides SET status=%s WHERE id=%s", (new_status, ride_id))
-        cur.execute(
-            "INSERT INTO ride_events (ride_id, type, actor_id) VALUES (%s,%s,%s)",
-            (ride_id, new_status.replace("_", "") if new_status != "in_progress" else "ride_started", g.user_id)
-        )
 
     socketio = _get_socketio()
     socketio.emit(
@@ -399,7 +416,6 @@ def complete_ride(ride_id: str):
             (ride_id, g.user_id)
         )
 
-        # Compute and store sustainability metrics
         co2 = compute_co2(
             float(ride["distance_km"] or 1),
             passengers=ride["passenger_count"] or 1,

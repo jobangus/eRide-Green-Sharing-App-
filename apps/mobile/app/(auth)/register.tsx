@@ -114,8 +114,9 @@ export default function RegisterScreen() {
     const e: Record<string, string> = {};
 
     if (!name.trim()) e.name = 'Name is required';
-    if (!email.toLowerCase().trim().endsWith('@monash.edu')) {
-      e.email = 'Must be a @monash.edu email';
+    const emailLower = email.toLowerCase().trim();
+    if (!emailLower.endsWith('@monash.edu') && !emailLower.endsWith('@student.monash.edu')) {
+      e.email = 'Must be a @monash.edu or @student.monash.edu email';
     }
 
     if (password.length < 8) {

@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 
 // API base URL — override via app.json extra.API_BASE_URL or env
 export const API_BASE_URL: string =
-  Constants.expoConfig?.extra?.API_BASE_URL ?? 'http://192.168.50.235:8000';
+  Constants.expoConfig?.extra?.API_BASE_URL ?? 'http://192.168.50.237:8000';
 
 export const STRIPE_PUBLISHABLE_KEY: string =
   Constants.expoConfig?.extra?.STRIPE_PUBLISHABLE_KEY ?? '';

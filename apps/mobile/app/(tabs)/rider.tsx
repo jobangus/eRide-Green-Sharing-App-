@@ -475,7 +475,7 @@ export default function RiderScreen() {
                 <Text style={styles.label}>Passengers (split fare)</Text>
               </View>
               <View style={styles.quickRow}>
-                {[1, 2, 3, 4].map((n) => (
+                {[1, 2].map((n) => (
                   <TouchableOpacity
                     key={n}
                     style={[styles.quickBtn, passengerCount === n && styles.quickBtnSelected]}

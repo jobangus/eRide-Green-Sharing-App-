@@ -45,7 +45,7 @@ def estimate():
     except (KeyError, ValueError, TypeError):
         return jsonify({"error": "validation", "message": "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng required"}), 400
 
-    passenger_count = max(1, int(data.get("passenger_count", 1)))
+    passenger_count = min(2, max(1, int(data.get("passenger_count", 1))))
 
     distance_km, eta_minutes = get_route_distance_km(p_lat, p_lng, d_lat, d_lng)
 
@@ -96,7 +96,7 @@ def request_ride():
 
     pickup_address = data.get("pickup_address", "")
     dropoff_address = data.get("dropoff_address", "")
-    passenger_count = max(1, int(data.get("passenger_count", 1)))
+    passenger_count = min(2, max(1, int(data.get("passenger_count", 1))))
     notes = data.get("notes", "")
     pickup_time_raw = data.get("pickup_time")
     if pickup_time_raw:

@@ -9,5 +9,5 @@ COPY app/ ./app/
 
 EXPOSE 5000
 
-# eventlet worker for Socket.IO
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "eventlet", "--workers", "1", "--timeout", "120", "app:create_app()"]
+# gevent worker for Socket.IO (psycogreen patches psycopg2 to not block the event loop)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker", "--workers", "1", "--timeout", "300", "app:create_app()"]

@@ -2,7 +2,9 @@ flask==3.0.3
 flask-cors==4.0.1
 flask-socketio==5.3.6
 gunicorn==21.2.0
-eventlet==0.36.1
+gevent==23.9.1
+gevent-websocket==0.10.1
+psycogreen==1.0.2
 psycopg2-binary==2.9.9
 redis==5.0.7
 PyJWT==2.8.0

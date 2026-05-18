@@ -1,5 +1,7 @@
-import eventlet
-eventlet.monkey_patch()
+from gevent import monkey
+monkey.patch_all()
+from psycogreen.gevent import patch_psycopg
+patch_psycopg()
 
 from flask import Flask
 from flask_cors import CORS
@@ -25,7 +27,7 @@ def create_app() -> Flask:
     socketio = SocketIO(
         app,
         cors_allowed_origins="*",
-        async_mode="eventlet",
+        async_mode="gevent",
         message_queue=Config.REDIS_URL,
         logger=False,
         engineio_logger=False,

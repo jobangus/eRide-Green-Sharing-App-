@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useAuth } from '../../src/store/auth';
 import { Button } from '../../src/components/ui/Button';
 import {
@@ -170,6 +171,13 @@ export default function ProfileScreen() {
             />
           </View>
         </View>
+
+        <Button
+          label="Test Stripe Payment"
+          onPress={() => router.push('/payment-test')}
+          variant="outline"
+          style={styles.testBtn}
+        />
 
         <Button
           label="Log Out"
@@ -385,8 +393,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 
-  logoutBtn: {
+  testBtn: {
     marginTop: 28,
+    borderColor: '#34A853',
+  },
+
+  logoutBtn: {
+    marginTop: 10,
     borderColor: '#34A853',
   },
 });

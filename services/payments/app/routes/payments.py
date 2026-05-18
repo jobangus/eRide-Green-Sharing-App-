@@ -1,4 +1,5 @@
 import stripe
+import uuid as uuid_lib
 from flask import Blueprint, request, jsonify, g, current_app
 from app.db import get_db
 from app.auth_middleware import require_auth
@@ -8,7 +9,7 @@ payments_bp = Blueprint("payments", __name__)
 
 stripe.api_key = Config.STRIPE_SECRET_KEY
 
-
+print(stripe.api_key)
 def _dollars_to_cents(amount: float) -> int:
     """Convert AUD dollar amount to cents for Stripe."""
     return max(50, int(round(amount * 100)))  # Stripe minimum: 50 cents
@@ -30,20 +31,28 @@ def create_intent():
     ride_id = data.get("ride_id")
     if not ride_id:
         return jsonify({"error": "validation", "message": "ride_id required"}), 400
+    try:
+        uuid_lib.UUID(str(ride_id))
+    except ValueError:
+        return jsonify({"error": "validation", "message": "ride_id must be a valid UUID"}), 400
 
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT rider_id, fare_estimated, status FROM rides WHERE id=%s", (ride_id,)
+            "SELECT rider_id, fare_estimated, passenger_count, status FROM rides WHERE id=%s", (ride_id,)
         )
         ride = cur.fetchone()
         if not ride:
             return jsonify({"error": "not_found", "message": "Ride not found"}), 404
         if str(ride["rider_id"]) != g.user_id:
             return jsonify({"error": "forbidden", "message": "Not your ride"}), 403
-        if ride["status"] not in ("matched", "confirmed"):
+        if ride["status"] not in ("matched", "confirmed", "enroute", "arrived", "in_progress", "completed"):
             return jsonify({"error": "invalid_state",
-                            "message": "Payment can only be created for matched/confirmed rides"}), 409
+                            "message": "Payment can only be initiated for an active or completed ride"}), 409
+
+        passenger_count = int(ride["passenger_count"] or 1)
+        total_fare = float(ride["fare_estimated"] or 5.00)
+        fare_per_rider = round(total_fare / passenger_count, 2)
 
         # Check no existing payment
         cur.execute("SELECT id, stripe_payment_intent_id FROM payments WHERE ride_id=%s", (ride_id,))
@@ -55,14 +64,15 @@ def create_intent():
                 return jsonify({
                     "client_secret": intent["client_secret"],
                     "payment_intent_id": intent["id"],
-                    "amount_aud": float(ride["fare_estimated"]),
+                    "amount_aud": fare_per_rider,
+                    "passenger_count": passenger_count,
+                    "amount_per_rider": fare_per_rider,
                 }), 200
             except Exception:
                 pass
 
-        amount_cents = _dollars_to_cents(float(ride["fare_estimated"] or 5.00))
-
-        if not Config.STRIPE_SECRET_KEY or Config.STRIPE_SECRET_KEY == "sk_test_placeholder":
+        amount_cents = _dollars_to_cents(fare_per_rider)
+        if not Config.STRIPE_SECRET_KEY or "YOUR" in Config.STRIPE_SECRET_KEY or Config.STRIPE_SECRET_KEY == "sk_test_placeholder":
             # Dev mode: return fake intent
             fake_id = f"pi_dev_{ride_id[:8]}"
             fake_secret = f"{fake_id}_secret_dev"
@@ -73,13 +83,14 @@ def create_intent():
                    VALUES (%s,%s,%s,%s,'aud','pending')
                    ON CONFLICT (ride_id) DO UPDATE
                    SET stripe_payment_intent_id=%s, stripe_client_secret=%s, status='pending'""",
-                (ride_id, fake_id, fake_secret, float(ride["fare_estimated"] or 0),
-                 fake_id, fake_secret)
+                (ride_id, fake_id, fake_secret, fare_per_rider, fake_id, fake_secret)
             )
             return jsonify({
                 "client_secret": fake_secret,
                 "payment_intent_id": fake_id,
-                "amount_aud": float(ride["fare_estimated"] or 0),
+                "amount_aud": fare_per_rider,
+                "passenger_count": passenger_count,
+                "amount_per_rider": fare_per_rider,
                 "dev_mode": True,
             }), 200
 
@@ -87,9 +98,9 @@ def create_intent():
             intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency="aud",
-                capture_method="manual",  # Authorize only; capture on completion
-                metadata={"ride_id": ride_id, "rider_id": g.user_id},
-                description=f"Mo-Ride fare for ride {ride_id[:8]}",
+                capture_method="manual",
+                metadata={"ride_id": ride_id, "rider_id": g.user_id, "passenger_count": passenger_count},
+                description=f"Mo-Ride fare for ride {ride_id[:8]} (1 of {passenger_count} riders)",
             )
         except stripe.error.StripeError as e:
             return jsonify({"error": "stripe_error", "message": str(e)}), 502
@@ -102,13 +113,15 @@ def create_intent():
                ON CONFLICT (ride_id) DO UPDATE
                SET stripe_payment_intent_id=%s, stripe_client_secret=%s""",
             (ride_id, intent["id"], intent["client_secret"],
-             float(ride["fare_estimated"] or 0), intent["id"], intent["client_secret"])
+             fare_per_rider, intent["id"], intent["client_secret"])
         )
 
     return jsonify({
         "client_secret": intent["client_secret"],
         "payment_intent_id": intent["id"],
-        "amount_aud": float(ride["fare_estimated"] or 0),
+        "amount_aud": fare_per_rider,
+        "passenger_count": passenger_count,
+        "amount_per_rider": fare_per_rider,
     }), 200
 
 

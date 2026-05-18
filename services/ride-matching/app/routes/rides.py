@@ -45,6 +45,8 @@ def estimate():
     except (KeyError, ValueError, TypeError):
         return jsonify({"error": "validation", "message": "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng required"}), 400
 
+    passenger_count = min(2, max(1, int(data.get("passenger_count", 1))))
+
     distance_km, eta_minutes = get_route_distance_km(p_lat, p_lng, d_lat, d_lng)
 
     redis = _get_redis()
@@ -61,6 +63,8 @@ def estimate():
         "distance_km": distance_km,
         "eta_minutes": eta_minutes,
         "fare": fare,
+        "passenger_count": passenger_count,
+        "fare_per_rider": round(fare["final_fare"] / passenger_count, 2),
     }), 200
 
 
@@ -92,7 +96,7 @@ def request_ride():
 
     pickup_address = data.get("pickup_address", "")
     dropoff_address = data.get("dropoff_address", "")
-    passenger_count = max(1, int(data.get("passenger_count", 1)))
+    passenger_count = min(2, max(1, int(data.get("passenger_count", 1))))
     notes = data.get("notes", "")
     pickup_time_raw = data.get("pickup_time")
     if pickup_time_raw:
@@ -416,9 +420,24 @@ def complete_ride(ride_id: str):
             (ride_id, g.user_id)
         )
 
+        # Look up driver's actual vehicle CO2 rating
+        cur.execute(
+            """SELECT v.co2_combined_g_per_km
+               FROM driver_profiles dp
+               LEFT JOIN vehicles v ON v.id = dp.vehicle_id
+               WHERE dp.user_id = %s""",
+            (g.user_id,)
+        )
+        vehicle_row = cur.fetchone()
+        co2_per_km_kg = None
+        if vehicle_row and vehicle_row["co2_combined_g_per_km"]:
+            co2_per_km_kg = vehicle_row["co2_combined_g_per_km"] / 1000.0
+
+        # Compute and store sustainability metrics
         co2 = compute_co2(
             float(ride["distance_km"] or 1),
             passengers=ride["passenger_count"] or 1,
+            co2_per_km_kg=co2_per_km_kg,
         )
         cur.execute(
             """INSERT INTO sustainability

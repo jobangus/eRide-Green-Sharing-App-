@@ -179,6 +179,22 @@ export default function DashboardScreen() {
                   <Text style={styles.rideMetaDot}>•</Text>
                   <Text style={styles.rideDistance}>{ride.passengers} passenger(s)</Text>
                 </View>
+
+                {ride.vehicle_make && (
+                  <View style={styles.vehicleRow}>
+                    <Car size={12} color="#6B7280" />
+                    <Text style={styles.vehicleText}>
+                      {ride.vehicle_year} {ride.vehicle_make} {ride.vehicle_model}
+                    </Text>
+                    {ride.vehicle_fuel_type && (
+                      <View style={[styles.fuelBadge, fuelBadgeStyle(ride.vehicle_fuel_type)]}>
+                        <Text style={[styles.fuelBadgeText, fuelTextStyle(ride.vehicle_fuel_type)]}>
+                          {ride.vehicle_fuel_type}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -198,6 +214,18 @@ export default function DashboardScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function fuelBadgeStyle(fuelType: string) {
+  if (fuelType.startsWith('Pure Electric')) return { backgroundColor: '#E3F2FD' };
+  if (fuelType.startsWith('Electric/')) return { backgroundColor: '#E8F5E9' };
+  return { backgroundColor: '#FFF8E1' };
+}
+
+function fuelTextStyle(fuelType: string) {
+  if (fuelType.startsWith('Pure Electric')) return { color: '#1565C0' };
+  if (fuelType.startsWith('Electric/')) return { color: '#2E7D32' };
+  return { color: '#F57F17' };
 }
 
 function StatCard({
@@ -546,5 +574,29 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 24,
     fontSize: 14,
+  },
+
+  vehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+
+  vehicleText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  fuelBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+
+  fuelBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

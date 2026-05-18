@@ -124,6 +124,7 @@ export interface RideEstimateRequest extends Coordinates {
   pickup_lng: number;
   dropoff_lat: number;
   dropoff_lng: number;
+  passenger_count?: number;
 }
 
 export interface FareBreakdown {
@@ -140,6 +141,8 @@ export interface RideEstimateResponse {
   distance_km: number;
   eta_minutes: number;
   fare: FareBreakdown;
+  passenger_count: number;
+  fare_per_rider: number;
 }
 
 export interface RequestRideBody {
@@ -237,6 +240,10 @@ export interface SustainabilityRideItem {
   baseline_co2_kg: number;
   actual_co2_kg: number;
   passengers: number;
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_year?: number;
+  vehicle_fuel_type?: string;
 }
 
 // ─── Payments ────────────────────────────────────────────────
@@ -249,6 +256,8 @@ export interface CreatePaymentIntentResponse {
   client_secret: string;
   payment_intent_id: string;
   amount_aud: number;
+  passenger_count?: number;
+  amount_per_rider?: number;
   dev_mode?: boolean;
 }
 

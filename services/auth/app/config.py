@@ -29,6 +29,6 @@ class Config:
     MINIO_USE_SSL: bool = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
 
     # App
-    MONASH_EMAIL_DOMAIN: str = "@monash.edu"
+    MONASH_EMAIL_DOMAINS: tuple = ("@monash.edu", "@student.monash.edu")
     OTP_EXPIRY_MINUTES: int = 10
     FLASK_ENV: str = os.getenv("FLASK_ENV", "production")

@@ -1,4 +1,4 @@
-.PHONY: dev down logs migrate seed test clean help
+.PHONY: dev down logs migrate seed test clean help import-vehicles
 
 # Default target
 help:
@@ -6,8 +6,9 @@ help:
 	@echo "  make dev        - Start all services with docker compose"
 	@echo "  make down       - Stop and remove containers"
 	@echo "  make logs       - Follow logs from all services"
-	@echo "  make migrate    - Apply DB migrations (runs automatically on first start)"
-	@echo "  make seed       - Seed sample data into the database"
+	@echo "  make migrate    - Apply DB migrations (run after pulling new migrations)"
+	@echo "  make seed       - Seed all sample and demo data into the database"
+	@echo "  make import-vehicles CSV=<path> - Import vehicle CO2 data from CSV"
 	@echo "  make test       - Run all backend tests"
 	@echo "  make clean      - Remove all containers + volumes (destructive!)"
 	@echo "  make setup-env  - Copy .env.example to .env (first time setup)"

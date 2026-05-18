@@ -220,6 +220,12 @@ export class MoRideApiClient {
   getPaymentStatus(rideId: string) {
     return this.request<PaymentStatusResponse>('GET', `/api/payments/status/${rideId}`);
   }
+
+  capturePayment(rideId: string) {
+    return this.request<{ status: string; amount_aud: number; dev_mode?: boolean }>(
+      'POST', '/api/payments/capture', { ride_id: rideId },
+    );
+  }
 }
 
 // Singleton for use across the app

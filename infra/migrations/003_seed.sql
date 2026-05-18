@@ -10,7 +10,7 @@ VALUES
     -- Driver 1: Alice
     ('11111111-1111-1111-1111-111111111111',
      'alice.driver@monash.edu',
-     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMaJqETdFvNjO3BvWyG4rMR6da',
+     '$2b$12$OLaq5G9kaHyyXZsJ4iwkOeJnAevpVPR39EYGtJ42u/kXfz3B9Mm2O',
      'Alice Chen', '+61400000001', 'driver', TRUE),
 
     -- Driver 2: Bob

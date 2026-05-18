@@ -51,7 +51,6 @@ interface RouteInfo {
 
 export default function RiderScreen() {
   const { api } = useAuth();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [appState, setAppState] = useState<AppState>('idle');
   const [pickup, setPickup] = useState<LocationPoint | null>(null);
   const [dropoff, setDropoff] = useState<LocationPoint | null>(null);
@@ -223,34 +222,7 @@ export default function RiderScreen() {
     if (!rideId) return;
     setPaymentLoading(true);
     try {
-      const intent = await api.createPaymentIntent({ ride_id: rideId });
-
-      if (intent.dev_mode) {
-        await api.capturePayment(rideId);
-        setPaymentDone(true);
-        setShowRating(true);
-        return;
-      }
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: intent.client_secret,
-        merchantDisplayName: 'Mo-Ride',
-        applePay: { merchantCountryCode: 'AU' },
-        googlePay: { merchantCountryCode: 'AU', testEnv: true },
-      });
-      if (initError) {
-        Alert.alert('Payment Error', initError.message);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        if (presentError.code !== 'Canceled') {
-          Alert.alert('Payment Failed', presentError.message);
-        }
-        return;
-      }
-
+      await api.createPaymentIntent({ ride_id: rideId });
       await api.capturePayment(rideId);
       setPaymentDone(true);
       setShowRating(true);

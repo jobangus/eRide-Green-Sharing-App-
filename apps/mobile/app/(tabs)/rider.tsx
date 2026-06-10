@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useStripe } from '@stripe/stripe-react-native';
 import { useAuth } from '../../src/store/auth';
 import { Button } from '../../src/components/ui/Button';
 import { THEME_COLORS, DEFAULT_MAP_REGION } from '../../src/constants/config';
@@ -34,7 +33,10 @@ import {
   CheckCircle2,
   Star,
   Users,
+  User,
+  CreditCard,
 } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 type AppState = 'idle' | 'selecting' | 'estimate' | 'matching' | 'active' | 'completed';
 
@@ -50,9 +52,15 @@ interface RouteInfo {
   encodedPolyline: string;
 }
 
+interface RideDetailsLite {
+  driver_name?: string;
+  car_make?: string;
+  car_model?: string;
+  car_plate?: string;
+}
+
 export default function RiderScreen() {
   const { api } = useAuth();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [appState, setAppState] = useState<AppState>('idle');
   const [pickup, setPickup] = useState<LocationPoint | null>(null);
   const [dropoff, setDropoff] = useState<LocationPoint | null>(null);
@@ -61,13 +69,30 @@ export default function RiderScreen() {
   const [rideId, setRideId] = useState<string | null>(null);
   const [rideStatus, setRideStatus] = useState<RideStatus | null>(null);
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [rideDetails, setRideDetails] = useState<RideDetailsLite | null>(null);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(5);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentDone, setPaymentDone] = useState(false);
   const [passengerCount, setPassengerCount] = useState(1);
   const mapRef = useRef<MapView>(null);
+
+  const fetchRideDetails = async (targetRideId: string) => {
+    try {
+      setDetailsLoading(true);
+      const data: any = await api.getRide(targetRideId);
+      setRideDetails({
+        driver_name: data.driver_name,
+        car_make: data.car_make,
+        car_model: data.car_model,
+        car_plate: data.car_plate,
+      });
+    } catch (err: any) {
+      console.log('Ride details fetch error:', err?.message);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   const socketHandlers = {
     onRideStatusUpdate: (data: WsRideStatusUpdate) => {
@@ -76,14 +101,17 @@ export default function RiderScreen() {
 
       if (data.status === 'matched' || data.status === 'confirmed') {
         setAppState('active');
+        if (rideId) {
+          fetchRideDetails(rideId);
+        }
       } else if (data.status === 'completed') {
         setAppState('completed');
-        setShowRating(true);
       } else if (data.status === 'cancelled') {
         Alert.alert('Ride Cancelled', 'Your ride was cancelled.');
         setAppState('idle');
         setRideId(null);
         setRideStatus(null);
+        setRideDetails(null);
       } else if (data.status === 'no_drivers') {
         Alert.alert('No Drivers', data.message || "No drivers available right now. We'll keep trying...");
       }
@@ -99,6 +127,19 @@ export default function RiderScreen() {
   useEffect(() => {
     if (rideId) socket.joinRide(rideId);
   }, [rideId]);
+
+  useEffect(() => {
+    if (
+      rideId &&
+      (rideStatus === 'matched' ||
+        rideStatus === 'confirmed' ||
+        rideStatus === 'enroute' ||
+        rideStatus === 'arrived' ||
+        rideStatus === 'in_progress')
+    ) {
+      fetchRideDetails(rideId);
+    }
+  }, [rideId, rideStatus]);
 
   const requestMyLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -189,6 +230,7 @@ export default function RiderScreen() {
 
       setRideId(res.ride_id);
       setRideStatus('matching');
+      setRideDetails(null);
       setAppState('matching');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -212,54 +254,13 @@ export default function RiderScreen() {
             setRideId(null);
             setRideStatus(null);
             setDriverLocation(null);
+            setRideDetails(null);
           } catch (err: any) {
             Alert.alert('Error', err.message);
           }
         },
       },
     ]);
-  };
-
-  const handlePayment = async () => {
-    if (!rideId) return;
-    setPaymentLoading(true);
-    try {
-      const intent = await api.createPaymentIntent({ ride_id: rideId });
-
-      if (intent.dev_mode) {
-        await api.capturePayment(rideId);
-        setPaymentDone(true);
-        setShowRating(true);
-        return;
-      }
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: intent.client_secret,
-        merchantDisplayName: 'Mo-Ride',
-        applePay: { merchantCountryCode: 'AU' },
-        googlePay: { merchantCountryCode: 'AU', testEnv: true },
-      });
-      if (initError) {
-        Alert.alert('Payment Error', initError.message);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        if (presentError.code !== 'Canceled') {
-          Alert.alert('Payment Failed', presentError.message);
-        }
-        return;
-      }
-
-      await api.capturePayment(rideId);
-      setPaymentDone(true);
-      setShowRating(true);
-    } catch (err: any) {
-      Alert.alert('Payment Error', err.message);
-    } finally {
-      setPaymentLoading(false);
-    }
   };
 
   const submitRating = async () => {
@@ -272,7 +273,7 @@ export default function RiderScreen() {
       setRideId(null);
       setRideStatus(null);
       setDriverLocation(null);
-      setPaymentDone(false);
+      setRideDetails(null);
       setPassengerCount(1);
       Alert.alert('Thank you!', 'Your rating has been submitted.');
     } catch (err: any) {
@@ -626,6 +627,45 @@ export default function RiderScreen() {
                 </View>
               )}
 
+              {(detailsLoading || rideDetails?.driver_name || rideDetails?.car_make || rideDetails?.car_model || rideDetails?.car_plate) && (
+                <View style={styles.driverInfoCard}>
+                  <Text style={styles.driverInfoTitle}>Driver Details</Text>
+
+                  {detailsLoading ? (
+                    <View style={styles.driverInfoLoadingRow}>
+                      <ActivityIndicator size="small" color={THEME_COLORS.primary} />
+                      <Text style={styles.driverInfoLoadingText}>Loading driver information...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={styles.driverInfoRow}>
+                        <User size={15} color={THEME_COLORS.primary} />
+                        <Text style={styles.driverInfoText}>
+                          <Text style={styles.driverInfoLabel}>Name: </Text>
+                          {rideDetails?.driver_name || 'Not available'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.driverInfoRow}>
+                        <Car size={15} color={THEME_COLORS.primary} />
+                        <Text style={styles.driverInfoText}>
+                          <Text style={styles.driverInfoLabel}>Vehicle: </Text>
+                          {[rideDetails?.car_make, rideDetails?.car_model].filter(Boolean).join(' ') || 'Not available'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.driverInfoRow}>
+                        <CreditCard size={15} color={THEME_COLORS.primary} />
+                        <Text style={styles.driverInfoText}>
+                          <Text style={styles.driverInfoLabel}>Plate: </Text>
+                          {rideDetails?.car_plate || 'Not available'}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
               {rideStatus === 'enroute' && (
                 <View style={styles.statusRow}>
                   <Car size={16} color={THEME_COLORS.subtext} />
@@ -666,25 +706,32 @@ export default function RiderScreen() {
             <View style={styles.centerContent}>
               <CheckCircle2 size={52} color={THEME_COLORS.primary} />
               <Text style={styles.matchingTitle}>Ride Complete!</Text>
-              {!paymentDone ? (
-                <>
-                  <Text style={styles.matchingSubtext}>
-                    {passengerCount > 1
-                      ? `Your share: A$${(estimate?.fare_per_rider ?? (estimate?.fare?.final_fare ?? 0) / passengerCount).toFixed(2)} (${passengerCount} riders)`
-                      : `Fare: A$${(estimate?.fare?.final_fare ?? 0).toFixed(2)}`}
-                  </Text>
-                  <Button
-                    label="Pay Now"
-                    onPress={handlePayment}
-                    loading={paymentLoading}
-                    style={styles.btn}
-                  />
-                </>
-              ) : (
-                <Text style={styles.matchingSubtext}>
-                  Payment confirmed. Rate your driver below.
-                </Text>
-              )}
+              <Text style={styles.matchingSubtext}>
+                {passengerCount > 1
+                  ? `Fare split available: A$${(estimate?.fare_per_rider ?? (estimate?.fare?.final_fare ?? 0) / passengerCount).toFixed(2)} per rider`
+                  : `Estimated fare: A$${(estimate?.fare?.final_fare ?? 0).toFixed(2)}`}
+              </Text>
+              <Text style={[styles.matchingSubtext, { marginTop: 8 }]}>
+                Payment is demonstrated separately for demo stability.
+              </Text>
+
+              <Button
+                label="Open Payment Test"
+                onPress={() =>
+                  router.push({
+                    pathname: '/payment-test',
+                    params: { rideId: rideId ?? '' },
+                  })
+                }
+                style={styles.btn}
+              />
+
+              <Button
+                label="Rate Driver"
+                onPress={() => setShowRating(true)}
+                variant="outline"
+                style={{ marginTop: 8 }}
+              />
             </View>
           )}
         </ScrollView>
@@ -721,7 +768,7 @@ export default function RiderScreen() {
                   setRideId(null);
                   setRideStatus(null);
                   setDriverLocation(null);
-                  setPaymentDone(false);
+                  setRideDetails(null);
                   setPassengerCount(1);
                 }}
                 variant="outline"
@@ -967,6 +1014,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2F5D34',
     lineHeight: 18,
+  },
+
+  driverInfoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+
+  driverInfoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: THEME_COLORS.text,
+    marginBottom: 10,
+  },
+
+  driverInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+
+  driverInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: THEME_COLORS.text,
+  },
+
+  driverInfoLabel: {
+    fontWeight: '700',
+    color: THEME_COLORS.text,
+  },
+
+  driverInfoLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  driverInfoLoadingText: {
+    fontSize: 13,
+    color: THEME_COLORS.subtext,
   },
 
   statusRow: {

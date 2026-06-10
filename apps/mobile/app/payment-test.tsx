@@ -96,8 +96,7 @@ export default function PaymentTestScreen() {
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: intent.client_secret,
         merchantDisplayName: 'Mo-Ride',
-        applePay: { merchantCountryCode: 'AU' },
-        googlePay: { merchantCountryCode: 'AU', testEnv: true },
+        returnURL: 'moride://payment-complete',
       });
 
       if (initError) {

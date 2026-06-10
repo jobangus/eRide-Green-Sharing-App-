@@ -263,6 +263,47 @@ export default function RiderScreen() {
     ]);
   };
 
+  const handlePayment = async () => {
+    if (!rideId) return;
+    setPaymentLoading(true);
+    try {
+      const intent = await api.createPaymentIntent({ ride_id: rideId });
+
+      if (intent.dev_mode) {
+        await api.capturePayment(rideId);
+        setPaymentDone(true);
+        setShowRating(true);
+        return;
+      }
+
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: intent.client_secret,
+        merchantDisplayName: 'Mo-Ride',
+        returnURL: 'moride://payment-complete',
+      });
+      if (initError) {
+        Alert.alert('Payment Error', initError.message);
+        return;
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code !== 'Canceled') {
+          Alert.alert('Payment Failed', presentError.message);
+        }
+        return;
+      }
+
+      await api.capturePayment(rideId);
+      setPaymentDone(true);
+      setShowRating(true);
+    } catch (err: any) {
+      Alert.alert('Payment Error', err.message);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const submitRating = async () => {
     if (!rideId) return;
 

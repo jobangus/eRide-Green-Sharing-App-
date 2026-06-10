@@ -43,6 +43,10 @@ export default function RegisterScreen() {
   const driverCheckOpacity = useRef(new Animated.Value(0)).current;
   const driverCheckTranslate = useRef(new Animated.Value(12)).current;
 
+  /**
+   * Animates the selection indicator when the user switches
+   * between rider and driver registration roles.
+   */
   useEffect(() => {
     if (role === 'rider') {
       Animated.parallel([
@@ -101,6 +105,13 @@ export default function RegisterScreen() {
     }
   }, [role, riderCheckOpacity, riderCheckTranslate, driverCheckOpacity, driverCheckTranslate]);
 
+  /**
+   * Formats phone number input into grouped Australian-style spacing
+   * while limiting stored digits to 10 characters.
+   *
+   * @param {string} input - raw phone number input
+   * @returns {string} formatted phone number
+   */
   const formatPhoneNumber = (input: string) => {
     const digits = input.replace(/\D/g, '').slice(0, 10);
 
@@ -110,6 +121,13 @@ export default function RegisterScreen() {
     return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
   };
 
+  /**
+   * Validates registration input fields before submission.
+   * Checks for required name, Monash email domain, and password strength.
+   * Stores validation messages in local error state for input feedback.
+   *
+   * @returns {boolean} true if all inputs are valid, otherwise false
+   */
   const validate = () => {
     const e: Record<string, string> = {};
 
@@ -131,6 +149,13 @@ export default function RegisterScreen() {
     return Object.keys(e).length === 0;
   };
 
+  /**
+   * Registers a new user account after validation succeeds.
+   * Cleans optional phone input, submits the form to the backend,
+   * and routes the user to OTP verification on success.
+   *
+   * @returns {Promise<void>} resolves when registration flow completes
+   */
   const handleRegister = async () => {
     if (!validate()) return;
 

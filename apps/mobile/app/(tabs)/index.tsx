@@ -22,6 +22,10 @@ export default function HomeScreen() {
   const totalRides = summary?.total_rides ?? 0;
   const co2Saved = summary?.total_co2_saved_kg ?? 0;
 
+  /**
+   * Loads the user sustainability summary when the home screen mounts.
+   * Prevents state updates if the screen has already unmounted.
+   */
   useEffect(() => {
     let isMounted = true;
 

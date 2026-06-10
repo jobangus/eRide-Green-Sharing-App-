@@ -1,3 +1,4 @@
+//AI Declaration: We used ChatGPT to help us implement an Admin page that stores users account information as well as their Carbon Emissions data. This admin account is purposed as our additional functionality outside the scope of our requirement to further improve our application management . "
 import React from 'react';
 import {
   View,
@@ -28,11 +29,25 @@ import { THEME_COLORS } from '../../src/constants/config';
 export default function AdminDashboardScreen() {
   const { user, logout } = useAuth();
 
+  /**
+   * Logs the administrator out of the current session
+   * and redirects them back to the login screen.
+   *
+   * @returns {Promise<void>} resolves when logout flow completes
+   */
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/login');
   };
 
+  /**
+   * Displays a placeholder alert for admin actions that are
+   * already scaffolded in the UI but not yet connected
+   * to live backend functionality.
+   *
+   * @param {string} label - title of the selected admin feature
+   * @returns {void}
+   */
   const showComingSoon = (label: string) => {
     Alert.alert(label, 'This admin feature can be connected to live backend data next.');
   };

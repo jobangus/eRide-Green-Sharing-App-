@@ -28,6 +28,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  /**
+   * Authenticates the user with the provided email and password.
+   * Validates empty input fields before calling the login function.
+   * Redirects admin users to the admin page and other users to the main tab layout.
+   * Displays an alert if login fails.
+   *
+   * @returns {Promise<void>} resolves when login flow is completed
+   */
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
@@ -50,6 +58,13 @@ export default function LoginScreen() {
     }
   };
 
+  /**
+   * Autofills the login form with a predefined development account.
+   * Uses the shared seeded password for easier internal testing.
+   *
+   * @param {string} devEmail - development account email to insert into the form
+   * @returns {void}
+   */
   const fillDevAccount = (devEmail: string) => {
     setEmail(devEmail);
     setPassword('Password123!');

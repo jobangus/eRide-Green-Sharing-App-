@@ -1,3 +1,4 @@
+//We used ChatGPT to help us implement an Admin page that stores users account information as well as their Carbon Emissions data. This admin account is purposed as our additional functionality outside the scope of our requirement to further improve our application management.
 import { Stack } from 'expo-router';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { StripeProvider } from '@stripe/stripe-react-native';

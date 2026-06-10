@@ -27,6 +27,12 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  /**
+   * Loads sustainability summary data and ride history
+   * from the backend for display in the dashboard.
+   *
+   * @returns {Promise<void>} resolves when dashboard data has loaded
+   */
   const load = async () => {
     try {
       const [sum, rideData] = await Promise.all([
@@ -40,10 +46,20 @@ export default function DashboardScreen() {
     }
   };
 
+  /**
+   * Performs the initial dashboard data fetch when the screen mounts.
+   * Updates the loading state once the request has completed.
+   */
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, []);
 
+  /**
+   * Refreshes dashboard content when the user performs
+   * a pull-to-refresh gesture on the scroll view.
+   *
+   * @returns {Promise<void>} resolves when refresh is completed
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -216,18 +232,40 @@ export default function DashboardScreen() {
   );
 }
 
+/**
+ * Returns a background style for the fuel badge based on vehicle fuel type.
+ *
+ * @param {string} fuelType - fuel type associated with the vehicle
+ * @returns {{ backgroundColor: string }} badge background style
+ */
 function fuelBadgeStyle(fuelType: string) {
   if (fuelType.startsWith('Pure Electric')) return { backgroundColor: '#E3F2FD' };
   if (fuelType.startsWith('Electric/')) return { backgroundColor: '#E8F5E9' };
   return { backgroundColor: '#FFF8E1' };
 }
 
+/**
+ * Returns a text color style for the fuel badge label
+ * based on the type of vehicle fuel.
+ *
+ * @param {string} fuelType - fuel type associated with the vehicle
+ * @returns {{ color: string }} badge text style
+ */
 function fuelTextStyle(fuelType: string) {
   if (fuelType.startsWith('Pure Electric')) return { color: '#1565C0' };
   if (fuelType.startsWith('Electric/')) return { color: '#2E7D32' };
   return { color: '#F57F17' };
 }
 
+/**
+ * Displays a compact dashboard statistic card
+ * containing an icon, value, and label.
+ *
+ * @param {React.ReactNode} icon - icon shown above the value
+ * @param {string | number} value - statistic value to display
+ * @param {string} label - short description of the statistic
+ * @returns {JSX.Element}
+ */
 function StatCard({
   icon,
   value,

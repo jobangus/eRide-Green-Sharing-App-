@@ -1,3 +1,4 @@
+//We used ChatGPT to help us implement an Admin page that stores users account information as well as their Carbon Emissions data. This admin account is purposed as our additional functionality outside the scope of our requirement to further improve our application management . 
 import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
@@ -8,6 +9,11 @@ import { THEME_COLORS } from '../../src/constants/config';
 export default function AdminLayout() {
   const { user, isLoading } = useAuth();
 
+  /**
+   * Redirects unauthenticated users to the login screen
+   * and non-admin users back to the main tab layout.
+   * This ensures that admin routes remain protected.
+   */
   useEffect(() => {
     if (!isLoading) {
       if (!user) {

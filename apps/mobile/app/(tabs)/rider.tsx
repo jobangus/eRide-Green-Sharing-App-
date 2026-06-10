@@ -77,6 +77,13 @@ export default function RiderScreen() {
   const [passengerCount, setPassengerCount] = useState(1);
   const mapRef = useRef<MapView>(null);
 
+  /**
+   * Fetches lightweight driver and vehicle details for the current ride
+   * so the rider can view the assigned driver's information.
+   *
+   * @param {string} targetRideId - ride identifier used to fetch ride details
+   * @returns {Promise<void>} resolves when driver information is loaded
+   */
   const fetchRideDetails = async (targetRideId: string) => {
     try {
       setDetailsLoading(true);
@@ -94,6 +101,11 @@ export default function RiderScreen() {
     }
   };
 
+  /**
+   * Handles incoming ride status and location updates received through Socket.IO.
+   * Updates rider UI state, fetches driver details after confirmation,
+   * and reacts to ride completion or cancellation events.
+   */
   const socketHandlers = {
     onRideStatusUpdate: (data: WsRideStatusUpdate) => {
       if (data.ride_id !== rideId) return;
@@ -124,10 +136,18 @@ export default function RiderScreen() {
 
   const socket = useSocketIO(socketHandlers, rideId || undefined);
 
+  /**
+   * Joins the ride-specific socket room once a ride has been created,
+   * allowing the rider to receive live updates for that trip.
+   */
   useEffect(() => {
     if (rideId) socket.joinRide(rideId);
   }, [rideId]);
 
+  /**
+   * Refetches driver details whenever the ride enters a state
+   * where the assigned driver should be visible to the rider.
+   */
   useEffect(() => {
     if (
       rideId &&
@@ -141,6 +161,12 @@ export default function RiderScreen() {
     }
   }, [rideId, rideStatus]);
 
+  /**
+   * Requests the device's current GPS location and uses it
+   * as the rider's pickup point.
+   *
+   * @returns {Promise<void>} resolves when pickup location is set
+   */
   const requestMyLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -159,6 +185,13 @@ export default function RiderScreen() {
     });
   };
 
+  /**
+   * Requests a fare estimate and route preview for the selected trip.
+   * Validates pickup and dropoff values before calling the backend
+   * and route service.
+   *
+   * @returns {Promise<void>} resolves when estimate and route data are loaded
+   */
   const getEstimate = async () => {
     if (!pickup || !dropoff) {
       Alert.alert('Error', 'Select pickup and dropoff locations');
@@ -213,6 +246,13 @@ export default function RiderScreen() {
     }
   };
 
+  /**
+   * Submits the ride request to the backend using the selected
+   * pickup, dropoff, and passenger count, then moves the rider
+   * into the matching state.
+   *
+   * @returns {Promise<void>} resolves when ride request is created
+   */
   const requestRide = async () => {
     if (!pickup || !dropoff) return;
 
@@ -239,6 +279,12 @@ export default function RiderScreen() {
     }
   };
 
+  /**
+   * Cancels the current ride request or active ride after confirmation,
+   * then clears ride-related rider state.
+   *
+   * @returns {Promise<void>} resolves when cancellation flow finishes
+   */
   const cancelRide = async () => {
     if (!rideId) return;
 
@@ -263,47 +309,12 @@ export default function RiderScreen() {
     ]);
   };
 
-  const handlePayment = async () => {
-    if (!rideId) return;
-    setPaymentLoading(true);
-    try {
-      const intent = await api.createPaymentIntent({ ride_id: rideId });
-
-      if (intent.dev_mode) {
-        await api.capturePayment(rideId);
-        setPaymentDone(true);
-        setShowRating(true);
-        return;
-      }
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: intent.client_secret,
-        merchantDisplayName: 'Mo-Ride',
-        returnURL: 'moride://payment-complete',
-      });
-      if (initError) {
-        Alert.alert('Payment Error', initError.message);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        if (presentError.code !== 'Canceled') {
-          Alert.alert('Payment Failed', presentError.message);
-        }
-        return;
-      }
-
-      await api.capturePayment(rideId);
-      setPaymentDone(true);
-      setShowRating(true);
-    } catch (err: any) {
-      Alert.alert('Payment Error', err.message);
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
-
+  /**
+   * Submits the rider's rating for the completed trip
+   * and resets the booking flow back to the idle state.
+   *
+   * @returns {Promise<void>} resolves when rating submission finishes
+   */
   const submitRating = async () => {
     if (!rideId) return;
 
@@ -322,15 +333,44 @@ export default function RiderScreen() {
     }
   };
 
+  /**
+   * Sets a predefined Monash campus as the rider's pickup location.
+   *
+   * @param {string} name - label of the selected pickup location
+   * @param {number} lat - latitude of the pickup location
+   * @param {number} lng - longitude of the pickup location
+   * @returns {void}
+   */
   const setMonashPickup = (name: string, lat: number, lng: number) => {
     setPickup({ lat, lng, address: name });
   };
 
+  /**
+   * Sets a predefined Monash campus as the rider's dropoff location.
+   *
+   * @param {string} name - label of the selected dropoff location
+   * @param {number} lat - latitude of the dropoff location
+   * @param {number} lng - longitude of the dropoff location
+   * @returns {void}
+   */
   const setMonashDropoff = (name: string, lat: number, lng: number) => {
     setDropoff({ lat, lng, address: name });
   };
 
+  /**
+   * Returns whether the given pickup location is currently selected.
+   *
+   * @param {string} address - pickup label to compare
+   * @returns {boolean}
+   */
   const isPickupSelected = (address: string) => pickup?.address === address;
+
+  /**
+   * Returns whether the given dropoff location is currently selected.
+   *
+   * @param {string} address - dropoff label to compare
+   * @returns {boolean}
+   */
   const isDropoffSelected = (address: string) => dropoff?.address === address;
 
   return (
@@ -823,6 +863,12 @@ export default function RiderScreen() {
   );
 }
 
+/**
+ * Displays a simple navigation icon used in the
+ * in-progress ride status row.
+ *
+ * @returns {JSX.Element}
+ */
 function NavigationIcon() {
   return <MapPin size={16} color={THEME_COLORS.subtext} />;
 }

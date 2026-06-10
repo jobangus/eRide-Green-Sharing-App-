@@ -13,7 +13,10 @@ export default function VerifyOtpScreen() {
   const [loading, setLoading] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
 
-  // In dev mode, auto-fill OTP
+  /**
+   * Automatically fills the OTP input fields when a development
+   * OTP is passed through route parameters during testing.
+   */
   useEffect(() => {
     if (devOtp && devOtp.length === 6) {
       const chars = devOtp.split('');
@@ -21,6 +24,14 @@ export default function VerifyOtpScreen() {
     }
   }, [devOtp]);
 
+  /**
+   * Updates a single OTP digit and manages cursor movement
+   * between input boxes during typing or deletion.
+   *
+   * @param {string} val - raw input value entered by the user
+   * @param {number} index - position of the OTP input being edited
+   * @returns {void}
+   */
   const handleChange = (val: string, index: number) => {
     const digits = val.replace(/\D/g, '').slice(-1);
     const next = [...otp];
@@ -30,9 +41,20 @@ export default function VerifyOtpScreen() {
     if (!digits && index > 0) inputs.current[index - 1]?.focus();
   };
 
+  /**
+   * Verifies the 6-digit OTP entered by the user against the backend.
+   * Redirects the user to the login screen after successful verification.
+   * Displays an alert if the OTP is incomplete or invalid.
+   *
+   * @returns {Promise<void>} resolves when verification flow is completed
+   */
   const handleVerify = async () => {
     const code = otp.join('');
-    if (code.length !== 6) { Alert.alert('Invalid', 'Please enter all 6 digits'); return; }
+    if (code.length !== 6) {
+      Alert.alert('Invalid', 'Please enter all 6 digits');
+      return;
+    }
+
     setLoading(true);
     try {
       await api.verifyOtp({ email: email!, otp: code });
@@ -54,6 +76,7 @@ export default function VerifyOtpScreen() {
         <Text style={styles.subtitle}>
           We sent a 6-digit code to{'\n'}<Text style={styles.email}>{email}</Text>
         </Text>
+
         {devOtp && (
           <View style={styles.devBanner}>
             <Text style={styles.devText}>🛠 Dev mode: OTP auto-filled ({devOtp})</Text>

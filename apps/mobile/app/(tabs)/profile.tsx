@@ -26,6 +26,12 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  /**
+   * Prompts the user to confirm logout before
+   * clearing the authenticated session.
+   *
+   * @returns {void}
+   */
   const handleLogout = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -191,6 +197,17 @@ export default function ProfileScreen() {
   );
 }
 
+/**
+ * Displays a labeled profile information row with
+ * an icon, label, value, and optional custom value styling.
+ *
+ * @param {React.ReactNode} icon - icon shown beside the label
+ * @param {string} label - short label describing the value
+ * @param {string} value - value displayed on the right side
+ * @param {object} [valueStyle] - optional extra style for the value text
+ * @param {boolean} [isLast=false] - disables bottom border for the last row
+ * @returns {JSX.Element}
+ */
 function InfoRow({
   icon,
   label,

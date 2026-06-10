@@ -82,6 +82,12 @@ export default function DriverScreen() {
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<MapView>(null);
 
+  /**
+   * Clears ride-related markers, route lines, and route summary
+   * from the map and driver interface.
+   *
+   * @returns {void}
+   */
   const clearRideVisuals = () => {
     setActivePickup(null);
     setActiveDropoff(null);
@@ -89,6 +95,13 @@ export default function DriverScreen() {
     setRouteSummary(null);
   };
 
+  /**
+   * Extracts pickup and dropoff information from an incoming ride request
+   * and stores it for use in the map view and ride guidance UI.
+   *
+   * @param {WsRideRequest | null} requestData - ride request payload received from Socket.IO
+   * @returns {void}
+   */
   const extractRidePoints = (requestData: WsRideRequest | null) => {
     if (!requestData) return;
 
@@ -114,6 +127,12 @@ export default function DriverScreen() {
     }
   };
 
+  /**
+   * Declines the currently pending ride request, stops the countdown timer,
+   * clears ride visuals, and returns the driver to the online waiting state.
+   *
+   * @returns {void}
+   */
   const handleDecline = () => {
     if (!pendingRequest) return;
 
@@ -151,6 +170,13 @@ export default function DriverScreen() {
     rideId || undefined
   );
 
+  /**
+   * Starts the accept/decline countdown for an incoming ride request.
+   * Automatically declines the request when the timer reaches zero.
+   *
+   * @param {number} seconds - number of seconds before request timeout
+   * @returns {void}
+   */
   const startCountdown = (seconds: number) => {
     setCountdown(seconds);
 
@@ -168,59 +194,72 @@ export default function DriverScreen() {
     }, 1000);
   };
 
- const goOnline = async () => {
-  const { status } = await Location.requestForegroundPermissionsAsync();
+  /**
+   * Places the driver online by requesting location permission,
+   * setting the initial location, notifying the backend, and
+   * starting live location updates when not using test mode.
+   *
+   * @returns {Promise<void>} resolves when online flow is completed
+   */
+  const goOnline = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
 
-  if (status !== 'granted') {
-    Alert.alert('Permission Required', 'Location permission is needed to drive.');
-    return;
-  }
-
-  let lat: number;
-  let lng: number;
-
-  if (USE_TEST_LOCATION) {
-    lat = TEST_DRIVER_LOCATION.lat;
-    lng = TEST_DRIVER_LOCATION.lng;
-  } else {
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-
-    lat = loc.coords.latitude;
-    lng = loc.coords.longitude;
-  }
-
-  setCurrentLocation({ lat, lng });
-
-  setLoading(true);
-  try {
-    await api.goOnline({ lat, lng });
-    setAppState('online');
-
-    if (!USE_TEST_LOCATION) {
-      locationWatchRef.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 5000,
-          distanceInterval: 20,
-        },
-        (location) => {
-          const { latitude, longitude } = location.coords;
-          setCurrentLocation({ lat: latitude, lng: longitude });
-
-          sendLocation(latitude, longitude, rideId || undefined);
-          api.updateDriverLocation(latitude, longitude).catch(() => {});
-        }
-      );
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Location permission is needed to drive.');
+      return;
     }
-  } catch (err: any) {
-    Alert.alert('Error', err.message);
-  } finally {
-    setLoading(false);
-  }
-};
 
+    let lat: number;
+    let lng: number;
+
+    if (USE_TEST_LOCATION) {
+      lat = TEST_DRIVER_LOCATION.lat;
+      lng = TEST_DRIVER_LOCATION.lng;
+    } else {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      lat = loc.coords.latitude;
+      lng = loc.coords.longitude;
+    }
+
+    setCurrentLocation({ lat, lng });
+
+    setLoading(true);
+    try {
+      await api.goOnline({ lat, lng });
+      setAppState('online');
+
+      if (!USE_TEST_LOCATION) {
+        locationWatchRef.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000,
+            distanceInterval: 20,
+          },
+          (location) => {
+            const { latitude, longitude } = location.coords;
+            setCurrentLocation({ lat: latitude, lng: longitude });
+
+            sendLocation(latitude, longitude, rideId || undefined);
+            api.updateDriverLocation(latitude, longitude).catch(() => {});
+          }
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Places the driver offline, removes live location tracking,
+   * clears ride visuals, and notifies the backend.
+   *
+   * @returns {Promise<void>} resolves when offline flow is completed
+   */
   const goOffline = async () => {
     locationWatchRef.current?.remove();
 
@@ -232,6 +271,13 @@ export default function DriverScreen() {
     setAppState('offline');
   };
 
+  /**
+   * Accepts the pending ride request, stops the countdown,
+   * stores ride information, and transitions the driver into
+   * the active ride state.
+   *
+   * @returns {Promise<void>} resolves when accept flow completes
+   */
   const handleAccept = async () => {
     if (!pendingRequest) return;
 
@@ -245,6 +291,13 @@ export default function DriverScreen() {
     setPendingRequest(null);
   };
 
+  /**
+   * Updates the current ride status through the backend
+   * and reflects the new state in the driver UI.
+   *
+   * @param {'enroute' | 'arrived' | 'in_progress'} status - next ride stage to apply
+   * @returns {Promise<void>} resolves when the status update completes
+   */
   const updateStatus = async (status: 'enroute' | 'arrived' | 'in_progress') => {
     if (!rideId) return;
 
@@ -256,6 +309,12 @@ export default function DriverScreen() {
     }
   };
 
+  /**
+   * Completes the active ride, updates ride state,
+   * shows rider rating modal, and reports saved CO₂.
+   *
+   * @returns {Promise<void>} resolves when ride completion finishes
+   */
   const completeRide = async () => {
     if (!rideId) return;
 
@@ -270,6 +329,12 @@ export default function DriverScreen() {
     }
   };
 
+  /**
+   * Submits the driver's rating for the rider after trip completion
+   * and resets the driver back to the online waiting state.
+   *
+   * @returns {Promise<void>} resolves when rating submission finishes
+   */
   const submitRating = async () => {
     if (!rideId) return;
 
@@ -283,6 +348,13 @@ export default function DriverScreen() {
     } catch {}
   };
 
+  /**
+   * Decodes an encoded Google polyline string into
+   * a list of latitude and longitude points for map rendering.
+   *
+   * @param {string} encoded - encoded polyline string
+   * @returns {LatLng[]} decoded coordinate list
+   */
   const decodePolyline = (encoded: string): LatLng[] => {
     const points: LatLng[] = [];
     let index = 0;
@@ -325,6 +397,11 @@ export default function DriverScreen() {
     return points;
   };
 
+  /**
+   * Recomputes the live route guidance shown to the driver
+   * based on the current ride stage and current GPS location.
+   * Pickup is targeted before ride start, and dropoff after ride begins.
+   */
   useEffect(() => {
     const updateRoute = async () => {
       if (!currentLocation || appState !== 'active_ride') {
@@ -382,6 +459,10 @@ export default function DriverScreen() {
     updateRoute();
   }, [currentLocation, rideStatus, activePickup, activeDropoff, appState]);
 
+  /**
+   * Fits the map camera to relevant coordinates whenever the ride stage changes,
+   * ensuring the driver and current destination remain visible on screen.
+   */
   useEffect(() => {
     if (!mapRef.current || !currentLocation) return;
 
@@ -411,6 +492,10 @@ export default function DriverScreen() {
     }
   }, [currentLocation, activePickup, activeDropoff, rideStatus, appState]);
 
+  /**
+   * Removes active location tracking and countdown timers
+   * when the driver screen unmounts.
+   */
   useEffect(() => {
     return () => {
       locationWatchRef.current?.remove();
@@ -418,6 +503,12 @@ export default function DriverScreen() {
     };
   }, []);
 
+  /**
+   * Returns a guidance message for the driver
+   * based on the current ride status.
+   *
+   * @returns {string} stage-specific guidance text
+   */
   const getStageText = () => {
     if (rideStatus === 'matched') return 'Ride accepted. Start driving to the pickup point.';
     if (rideStatus === 'enroute') return 'You are currently heading to the rider’s pickup location.';
@@ -426,6 +517,12 @@ export default function DriverScreen() {
     return 'Waiting for the next trip stage.';
   };
 
+  /**
+   * Returns the label of the current destination
+   * based on whether the driver is heading to pickup or dropoff.
+   *
+   * @returns {string | null} destination label for display
+   */
   const getTargetLabel = () => {
     if (rideStatus === 'matched' || rideStatus === 'enroute' || rideStatus === 'arrived') {
       return activePickup?.address || 'Pickup Location';
